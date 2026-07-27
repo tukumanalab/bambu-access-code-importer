@@ -264,8 +264,18 @@ while i < ARGV.length
 end
 
 if path == ""
+  found = []
   candidate_paths.each do |p|
-    path = p if path == "" && File.exist?(p)
+    found << p if File.exist?(p)
+  end
+  path = found[0].to_s
+  if found.length > 1
+    puts "候補が " + found.length.to_s + " 件見つかりました。最初の 1 件を使います:"
+    found.each do |p|
+      puts "  " + p
+    end
+    puts "別の conf を対象にしたい場合は、パスを引数で指定してください。"
+    puts ""
   end
 end
 
@@ -281,6 +291,13 @@ unless File.exist?(path)
 end
 
 puts "対象: " + path
+
+unless File.writable?(path)
+  puts ""
+  puts "!! このファイルに書き込む権限がありません。"
+  puts "   Windows 側で読み取り専用になっていないか確認してください。"
+  exit 1
+end
 
 codes = {}
 if codes_file != ""
@@ -344,5 +361,47 @@ end
 backup = path + ".bak-" + Time.now.strftime("%Y%m%d%H%M%S")
 File.write(backup, text)
 File.write(path, updated)
+
+# 書いたつもりで書けていないことがある (権限、別プロセスによる復元など)。
+# 必ず読み直して確認する。
+unless File.exist?(backup)
+  puts ""
+  puts "!! バックアップを作成できませんでした: " + backup
+  puts "   このディレクトリに書き込む権限があるか確認してください。"
+  exit 1
+end
+
+check = File.read(path)
+if check != updated
+  puts ""
+  puts "!! 書き込みが反映されていません。"
+  puts "   対象: " + path
+  puts "   書き込もうとしたサイズ: " + updated.length.to_s + " バイト"
+  puts "   実際のファイルのサイズ: " + check.length.to_s + " バイト"
+  puts ""
+  puts "   考えられる原因:"
+  puts "   - Bambu Studio が起動したままで、設定を書き戻している"
+  puts "   - このファイルに書き込む権限がない (読み取り専用など)"
+  puts "   - 別のユーザーの conf を対象にしている (上の「対象:」を確認)"
+  puts ""
+  puts "   元の内容は " + backup + " に残してあります。"
+  exit 1
+end
+
+after = existing_entries(check)
+missing = []
+codes.each do |k, v|
+  missing << k if after[k] != v
+end
+unless missing.empty?
+  puts ""
+  puts "!! 書き込み後の確認で " + missing.length.to_s + " 件が見つかりません。"
+  missing.each do |k|
+    puts "   " + k
+  end
+  puts "   元の内容は " + backup + " に残してあります。"
+  exit 1
+end
+
 puts "バックアップ: " + backup
-puts "アクセスコードを書き込みました。"
+puts "アクセスコードを書き込みました。(確認済み: " + after.length.to_s + " 件)"
