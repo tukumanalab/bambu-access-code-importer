@@ -40,8 +40,6 @@ jobs:
           printf '# comment\n0309FA5TEST 1a2b3c4d\n' | "dist/patch_access_code-${{ matrix.target }}" "$RUNNER_TEMP/test.conf"
           grep -q '"0309FA5TEST": "1a2b3c4d"' "$RUNNER_TEMP/test.conf"
           grep -q '"0EXIST1": "11111111"' "$RUNNER_TEMP/test.conf"
-          printf '{ "0JSONFMT": "9z8y7x6w" }\n' | "dist/patch_access_code-${{ matrix.target }}" "$RUNNER_TEMP/test.conf"
-          grep -q '"0JSONFMT": "9z8y7x6w"' "$RUNNER_TEMP/test.conf"
 
       - uses: actions/upload-artifact@v4
         with:

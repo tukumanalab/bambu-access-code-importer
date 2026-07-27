@@ -22,7 +22,6 @@ Bambu Studio が LAN モードのアクセスコードを保存し損ねる問�
 
 シリアル番号とアクセスコードは Bambu Studio の
 「デバイス」→ 対象プリンタ →「ネットワーク」で確認できる。
-（旧形式の JSON を貼り付けても読み取れる。）
 
 > **注意:** この JSON はプリンタの認証情報そのもの。誰でも見られる場所には
 > 置かないこと。
@@ -159,8 +158,8 @@ xattr -d com.apple.quarantine ~/Downloads/patch_access_code-macos-arm64
 ./patch_access_code-... -f access_codes.txt
 ```
 
-カレントディレクトリに `access_codes.txt`（または旧形式の
-`access_codes.json`）があれば、貼り付けを求めずにそれを自動で使う。
+カレントディレクトリに `access_codes.txt` があれば、貼り付けを求めずに
+それを自動で使う。
 
 conf のパスを明示する（自動検出が外れた場合や、別ユーザーの設定を触る場合）:
 

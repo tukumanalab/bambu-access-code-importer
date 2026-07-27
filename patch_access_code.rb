@@ -12,10 +12,9 @@
 
 # アクセスコードは実行時に受け取る (優先順):
 #   1. -f FILE で指定したファイル
-#   2. カレントディレクトリの access_codes.txt (無ければ access_codes.json)
+#   2. カレントディレクトリの access_codes.txt
 #   3. どちらも無ければ、その場で貼り付けてもらう
 # 形式は 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
-# JSON を貼り付けても読み取れる。
 # バイナリにもこのソースにも認証情報は含まれないので、そのまま配布できる。
 
 KEY = "user_access_code"
@@ -154,22 +153,10 @@ def line_tokens(line)
 end
 
 # 貼り付け・ファイルのテキストからアクセスコード一覧を読み取る。
-# 基本形式は 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
-# テキストに引用符が含まれていれば JSON とみなし、引用符で囲まれた
-# 文字列を順に組にして拾う (前後に余計な行が混ざっていても動く)。
+# 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
+# 2 項目ちょうどの行だけを拾うので、見出しや説明文が混ざっていても動く。
 def parse_codes(text)
   map = {}
-  unless text.index("\"").nil?
-    parts = scan_strings(text)
-    i = 0
-    while i + 1 < parts.length
-      k = parts[i].to_s
-      v = parts[i + 1].to_s
-      map[k] = v if valid_token?(k) && valid_token?(v)
-      i += 2
-    end
-    return map
-  end
   start = 0
   n = text.length
   while start <= n
@@ -305,9 +292,6 @@ if codes_file != ""
 elsif File.exist?("access_codes.txt")
   puts "カレントディレクトリの access_codes.txt を使います。"
   codes = parse_codes(File.read("access_codes.txt"))
-elsif File.exist?("access_codes.json")
-  puts "カレントディレクトリの access_codes.json を使います。"
-  codes = parse_codes(File.read("access_codes.json"))
 else
   codes = read_pasted_codes
 end
