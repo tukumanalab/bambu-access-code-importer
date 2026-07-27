@@ -1,4 +1,4 @@
-# Bambu Studio アクセスコード注入ツール
+# Bambu Studio アクセスコード書き戻しツール
 
 Bambu Studio が LAN モードのアクセスコードを保存し損ねる問題
 ([BambuStudio#5707](https://github.com/bambulab/BambuStudio/issues/5707)) の回避策。
@@ -6,9 +6,9 @@ Bambu Studio が LAN モードのアクセスコードを保存し損ねる問�
 
 | ファイル | 用途 | Git |
 |---|---|---|
-| `patch_access_code.rb` | 注入処理の本体。[spinel](https://github.com/matz/spinel) でバイナリ化する | 管理下 |
+| `patch_access_code.rb` | 書き戻し処理の本体。[spinel](https://github.com/matz/spinel) でバイナリ化する | 管理下 |
 | `build_patcher.rb` | `access_codes.json` を埋め込んで spinel でビルドする | 管理下 |
-| `launch_bambu_studio.rb` | macOS 用。コードを注入して Bambu Studio を起動する | 管理下 |
+| `launch_bambu_studio.rb` | macOS 用。コードを書き戻して Bambu Studio を起動する | 管理下 |
 | `access_codes.json` | アクセスコードの一覧（唯一の情報源） | **除外** |
 | `build/` | コードを埋め込んだビルド用ソース（自動生成） | **除外** |
 | `dist/` | コードを埋め込んだバイナリ | **除外** |
@@ -181,7 +181,7 @@ SPINEL=/path/to/spinel/bin/spinel ruby build_patcher.rb -o dist/patch_access_cod
 ```
 
 `patch_access_code.rb` を spinel に直接渡してもコンパイルは通るが、
-`CODES` が空なので何も注入しないバイナリになる。必ず `build_patcher.rb`
+`CODES` が空なので何も書き込まないバイナリになる。必ず `build_patcher.rb`
 を通すこと（Ruby が必要なのはこのビルド時だけで、できたバイナリの実行には要らない）。
 
 **WSL 用バイナリを macOS から作る（Docker）**

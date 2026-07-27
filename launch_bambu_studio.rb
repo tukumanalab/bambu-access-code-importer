@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # Bambu Studio 起動前に、access_codes.json のアクセスコードを
-# BambuStudio.conf の user_access_code へ注入してから Studio を起動する。
+# BambuStudio.conf の user_access_code へ書き戻してから Studio を起動する。
 # Studio がコードの保存を落とすバグ (bambulab/BambuStudio#5707) の回避策。
 
 require "json"
@@ -31,5 +31,5 @@ conf["user_access_code"] = (conf["user_access_code"] || {}).merge(codes)
 File.write(CONF, JSON.generate(conf))
 
 codes.each { |serial, code| puts "#{serial} => #{code}" }
-puts "アクセスコードを注入しました。Bambu Studio を起動します。"
+puts "アクセスコードを書き戻しました。Bambu Studio を起動します。"
 system("open", "-a", "BambuStudio")
