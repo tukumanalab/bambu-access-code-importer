@@ -1,0 +1,61 @@
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x86_64
+          - os: macos-latest
+            target: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build spinel
+        run: |
+          git clone --depth 1 https://github.com/matz/spinel.git "$RUNNER_TEMP/spinel"
+          cd "$RUNNER_TEMP/spinel"
+          make deps
+          make
+
+      - name: Compile
+        run: |
+          mkdir -p dist
+          "$RUNNER_TEMP/spinel/bin/spinel" patch_access_code.rb -o "dist/patch_access_code-${{ matrix.target }}"
+
+      - name: Smoke test
+        run: |
+          printf '{\n    "user_access_code": {\n        "0EXIST1": "11111111"\n    }\n}\n' > "$RUNNER_TEMP/test.conf"
+          printf '{ "0309FA5TEST": "1a2b3c4d" }\n' | "dist/patch_access_code-${{ matrix.target }}" "$RUNNER_TEMP/test.conf"
+          grep -q '"0309FA5TEST": "1a2b3c4d"' "$RUNNER_TEMP/test.conf"
+          grep -q '"0EXIST1": "11111111"' "$RUNNER_TEMP/test.conf"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patch_access_code-${{ matrix.target }}
+          path: dist/patch_access_code-${{ matrix.target }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

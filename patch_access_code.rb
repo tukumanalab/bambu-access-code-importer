@@ -10,16 +10,15 @@
 # "user_access_code" のオブジェクト部分だけをテキストとして差し替える。
 # こうすると他の設定は 1 バイトも変わらない。
 
-# 実際のアクセスコードは build_patcher.rb が access_codes.json から読み取り、
-# ビルド用のコピー (build/patch_access_code.gen.rb) にだけ埋め込む。
-# このファイルは常に空のまま = 認証情報を含まないので、そのままコミットできる。
-# ここを手で埋めない (埋めるとリポジトリにコードが入る)。
-# --- BEGIN GENERATED CODES ---
-CODES = {}
-# --- END GENERATED CODES ---
+# アクセスコードは実行時に受け取る (優先順):
+#   1. -f FILE で指定した JSON ファイル
+#   2. カレントディレクトリの access_codes.json
+#   3. どちらも無ければ、その場で貼り付けてもらう
+# バイナリにもこのソースにも認証情報は含まれないので、そのまま配布できる。
 
 KEY = "user_access_code"
 INDENT = "    "
+TOKEN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
 
 # WSL から見た Windows 側のユーザープロファイルを走査する。
 # spinel の Dir.glob は末尾要素のワイルドカードしか展開しないため、
@@ -120,6 +119,63 @@ def scan_strings(s)
   out
 end
 
+def valid_token?(s)
+  return false if s.length == 0
+  i = 0
+  while i < s.length
+    return false if TOKEN_CHARS.index(s[i]).nil?
+    i += 1
+  end
+  true
+end
+
+# 貼り付け・ファイルのテキストから "シリアル": "コード" の組を取り出す。
+# JSON として厳密に解析せず、引用符で囲まれた文字列を順に拾うので、
+# 前後に余計な行が混ざっていても動く。
+def parse_codes(text)
+  map = {}
+  parts = scan_strings(text)
+  i = 0
+  while i + 1 < parts.length
+    k = parts[i].to_s
+    v = parts[i + 1].to_s
+    map[k] = v if valid_token?(k) && valid_token?(v)
+    i += 2
+  end
+  map
+end
+
+def read_pasted_codes
+  puts ""
+  puts "アクセスコード一覧 (JSON) を貼り付けてください。"
+  puts "例:"
+  puts "  {"
+  puts "    \"0309FA5XXXXXXXX\": \"1a2b3c4d\""
+  puts "  }"
+  puts "貼り付け後、空行 (Enter) で確定します。"
+  buf = ""
+  depth = 0
+  opened = false
+  while (line = STDIN.gets)
+    blank = line == "\n" || line == "\r\n" || line == ""
+    break if blank && buf != ""
+    buf = buf + line
+    i = 0
+    while i < line.length
+      c = line[i]
+      if c == "{"
+        depth += 1
+        opened = true
+      elsif c == "}"
+        depth -= 1
+      end
+      i += 1
+    end
+    break if opened && depth <= 0
+  end
+  parse_codes(buf)
+end
+
 def existing_entries(text)
   map = {}
   span = object_span(text, KEY)
@@ -164,12 +220,19 @@ end
 
 dry_run = false
 path = ""
-ARGV.each do |a|
+codes_file = ""
+i = 0
+while i < ARGV.length
+  a = ARGV[i]
   if a == "-n" || a == "--dry-run"
     dry_run = true
+  elsif a == "-f" || a == "--codes"
+    i += 1
+    codes_file = ARGV[i].to_s
   else
     path = a
   end
+  i += 1
 end
 
 if path == ""
@@ -191,6 +254,26 @@ end
 
 puts "対象: " + path
 
+codes = {}
+if codes_file != ""
+  unless File.exist?(codes_file)
+    puts "ファイルがありません: " + codes_file
+    exit 1
+  end
+  codes = parse_codes(File.read(codes_file))
+elsif File.exist?("access_codes.json")
+  puts "カレントディレクトリの access_codes.json を使います。"
+  codes = parse_codes(File.read("access_codes.json"))
+else
+  codes = read_pasted_codes
+end
+
+if codes.empty?
+  puts "アクセスコードが読み取れませんでした。"
+  puts "\"シリアル番号\": \"アクセスコード\" の形式で貼り付けてください。"
+  exit 1
+end
+
 text = File.read(path)
 if text.index("{").nil?
   puts "JSON として読めません。中身を確認してください。"
@@ -204,7 +287,7 @@ before.each do |k, v|
 end
 added = 0
 changed = 0
-CODES.each do |k, v|
+codes.each do |k, v|
   old = merged[k]
   if old.nil?
     added += 1
