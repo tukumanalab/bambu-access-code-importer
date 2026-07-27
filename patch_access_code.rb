@@ -17,7 +17,7 @@
 # 形式は 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
 # バイナリにもこのソースにも認証情報は含まれないので、そのまま配布できる。
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 
 KEY = "user_access_code"
 INDENT = "    "
@@ -26,14 +26,14 @@ TOKEN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
 # WSL から見た Windows 側のユーザープロファイルを走査する。
 # spinel の Dir.glob は末尾要素のワイルドカードしか展開しないため、
 # "/mnt/c/Users/*/AppData/..." は使えない。自前で列挙する。
+WSL_ROOT = "/mnt/c/Users"
+
 def wsl_paths
   list = []
-  root = "/mnt/c/Users"
-  return list unless Dir.exist?(root)
-  Dir.entries(root).each do |name|
+  return list unless Dir.exist?(WSL_ROOT)
+  Dir.entries(WSL_ROOT).each do |name|
     if name != "." && name != ".."
-      p = root + "/" + name + "/AppData/Roaming/BambuStudio/BambuStudio.conf"
-      list << p if File.exist?(p)
+      list << WSL_ROOT + "/" + name + "/AppData/Roaming/BambuStudio/BambuStudio.conf"
     end
   end
   list
@@ -288,7 +288,32 @@ end
 
 if path == ""
   puts "BambuStudio.conf が見つかりませんでした。"
-  puts "パスを引数で指定してください: patch_access_code <BambuStudio.conf のパス>"
+  puts ""
+  puts "探した場所:"
+  candidates = candidate_paths
+  if candidates.empty?
+    puts "  (候補なし)"
+  end
+  candidates.each do |p|
+    puts "  なし: " + p
+  end
+  puts ""
+  if Dir.exist?(WSL_ROOT)
+    names = []
+    Dir.entries(WSL_ROOT).each do |n|
+      names << n if n != "." && n != ".."
+    end
+    puts WSL_ROOT + " にあるユーザー: " + names.join(", ")
+  else
+    puts WSL_ROOT + " がありません (WSL 以外で実行しているか、C ドライブ以外に Windows がある)"
+  end
+  puts ""
+  puts "上に自分のユーザー名があるのに見つからない場合、Bambu Studio の設定は"
+  puts "別の場所にあります。Windows の PowerShell で次を実行して探してください:"
+  puts "  dir $env:APPDATA\\BambuStudio\\BambuStudio.conf"
+  puts ""
+  puts "分かったパスは /mnt/c/... の形にして引数で渡します:"
+  puts "  patch_access_code \"/mnt/c/Users/ユーザー名/AppData/Roaming/BambuStudio/BambuStudio.conf\""
   exit 1
 end
 
