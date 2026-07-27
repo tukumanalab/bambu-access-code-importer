@@ -241,8 +241,8 @@ sudo apt install -y build-essential git
 git clone --depth 1 https://github.com/matz/spinel.git
 cd spinel && make deps && make      # bin/spinel ができる
 cd ..
-git clone https://github.com/tukumanalab/bambu-access-code-keeper.git
-spinel/bin/spinel bambu-access-code-keeper/patch_access_code.rb -o patch_access_code
+git clone https://github.com/tukumanalab/bambu-access-code-importer.git
+spinel/bin/spinel bambu-access-code-importer/patch_access_code.rb -o patch_access_code
 ```
 
 できた `patch_access_code` は、ダウンロードしたバイナリと同じように使える。
