@@ -29,33 +29,71 @@ Bambu Studio が LAN モードのアクセスコードを保存し損ねる問�
 
 ### Windows で使う（WSL 経由）
 
+このツールは Windows 版のバイナリを作れないため、Windows に標準で用意されている
+Linux 環境（WSL）から実行する。WSL からは Windows のドライブが見えるので、
+Windows 側の設定ファイルをそのまま書き換えられる。
+
+**0. WSL が使えることを確認する（初回だけ）**
+
+スタートメニューで「PowerShell」を開き、次を実行する。
+
+```powershell
+wsl -l -v
+```
+
+Ubuntu などの名前が表示されれば準備できている。「WSL がインストールされて
+いません」といったメッセージが出たら、次を実行して PC を再起動する
+（途中で Linux 側のユーザー名とパスワードを決めるよう求められる。
+Windows のものと違って構わない）。
+
+```powershell
+wsl --install
+```
+
 **1. Bambu Studio を終了する**
 
 これは必須。Bambu Studio は終了時に `BambuStudio.conf` を自分の内容で
-上書きするので、起動したまま書き換えても消える。タスクトレイに常駐して
-いないかも確認する。
+上書きするので、起動したまま書き換えても消える。画面を閉じただけでは
+終了していないことがあるので、タスクトレイ（時計の左の隠れたアイコン）に
+残っていないかも確認する。
 
 **2. [Releases](../../releases) から `patch_access_code-linux-x86_64` をダウンロードする**
 
-**3. WSL を開き、バイナリを WSL 側にコピーして実行する**
+ブラウザで開いて、最新版の Assets からファイル名をクリックする。
+そのまま「ダウンロード」フォルダに保存する。
+
+**3. WSL を開く**
+
+スタートメニューで「Ubuntu」（または `wsl --install` で入れた
+ディストリビューション名）を選ぶ。黒いターミナル画面が開く。
+
+**4. バイナリを WSL 側にコピーして実行する**
+
+次の 3 行を 1 行ずつ実行する。`<Windowsのユーザー名>` は
+`C:\Users\` の下にある自分のフォルダ名に置き換える。
 
 ```bash
-cp /mnt/c/Users/$USER/Downloads/patch_access_code-linux-x86_64 ~/
+cp /mnt/c/Users/<Windowsのユーザー名>/Downloads/patch_access_code-linux-x86_64 ~/
 chmod +x ~/patch_access_code-linux-x86_64
 ~/patch_access_code-linux-x86_64
 ```
 
-`/mnt/c` から直接実行できることも多いが、ドライブのマウント設定によっては
-実行権限を付けられないため、WSL 側のホームに置くのが確実。
-Windows のユーザー名と WSL のユーザー名が違う場合は `$USER` を実際の
-Windows ユーザー名に読み替える。
+- `/mnt/c` は WSL から見た Windows の C ドライブ。つまり 1 行目は
+  「ダウンロードしたファイルを Linux 側にコピーする」という意味。
+- 2 行目でファイルに実行の許可を与え、3 行目で実行する。
+- ユーザー名が分からなければ、`ls /mnt/c/Users` を実行すると一覧が出る。
+- `/mnt/c` から直接実行できることも多いが、ドライブのマウント設定によっては
+  実行権限を付けられないため、WSL 側のホーム（`~/`）に置くのが確実。
 
 引数なしで実行すると `/mnt/c/Users/` 配下を走査して
 `AppData/Roaming/BambuStudio/BambuStudio.conf` を自動で見つける。
 
-**4. アクセスコード一覧をコピーして、ターミナルに貼り付ける**
+**5. アクセスコード一覧をコピーして、ターミナルに貼り付ける**
 
 掲載場所から一覧をまるごとコピーし、プロンプトに貼り付けて Enter を押す。
+
+> **貼り付けは `Ctrl+V` では効かない。** ターミナル内で**右クリック**するか、
+> `Ctrl+Shift+V` を押す。
 
 ```
 対象: /mnt/c/Users/ユーザー名/AppData/Roaming/BambuStudio/BambuStudio.conf
@@ -74,12 +112,20 @@ Windows ユーザー名に読み替える。
 
 conf に元からあったエントリはマージされて消えない。
 
-**5. Bambu Studio を起動して、プリンタに LAN モードで接続できることを確認する**
+**6. Bambu Studio を起動して、プリンタに LAN モードで接続できることを確認する**
 
 ### macOS で使う
 
-[Releases](../../releases) から `patch_access_code-macos-arm64` をダウンロードし、
-同じ手順で実行する（Bambu Studio 終了 → 実行 → 貼り付け）。
+Apple シリコン（M1 以降）の Mac 向け。手順の考え方は Windows と同じで、
+Bambu Studio を終了 → 実行 → 一覧を貼り付け、の順。
+
+**1. Bambu Studio を終了する**（メニューの「Bambu Studio」→「終了」）
+
+**2. [Releases](../../releases) から `patch_access_code-macos-arm64` をダウンロードする**
+
+**3.「ターミナル」を開いて実行する**
+
+Spotlight（`⌘ + スペース`）で「ターミナル」と入力して開き、次を実行する。
 
 ```bash
 chmod +x ~/Downloads/patch_access_code-macos-arm64
@@ -87,9 +133,17 @@ chmod +x ~/Downloads/patch_access_code-macos-arm64
 ```
 
 `~/Library/Application Support/BambuStudio/BambuStudio.conf` を自動検出する。
-初回は Gatekeeper に止められることがある。その場合は
-「システム設定」→「プライバシーとセキュリティ」で許可するか、
-`xattr -d com.apple.quarantine <バイナリ>` を実行する。
+
+「開発元を確認できないため開けません」と止められたら、次を実行してから
+やり直す（ダウンロードしたファイルに付く検疫マークを外す操作）。
+
+```bash
+xattr -d com.apple.quarantine ~/Downloads/patch_access_code-macos-arm64
+```
+
+**4. アクセスコード一覧を貼り付けて Enter**（`⌘ + V` で貼り付けられる）
+
+**5. Bambu Studio を起動して、LAN モードで接続できることを確認する**
 
 ### オプション
 
@@ -136,8 +190,9 @@ Bambu Studio を一度も起動していないか、パスが標準と違う。P
 
 **`cannot execute binary file: Exec format error`**
 
-ARM 版 Windows で x86-64 バイナリを動かそうとしている。下の手動ビルドを
-WSL 内でそのまま実行すれば、その環境向けのバイナリができる。
+ARM 版 Windows で x86-64 バイナリを動かそうとしている。
+[配布バイナリが動かない環境で使う](#配布バイナリが動かない環境で使うarm-版-windowsintel-mac)
+の手順を WSL 内でそのまま実行すれば、その環境向けのバイナリができる。
 
 **書き換えたのに Bambu Studio でコードが消えている**
 
@@ -151,25 +206,12 @@ Bambu Studio が起動したままだった。終了させてから実行し直�
 
 ---
 
-## リリース（ビルド）
+## 配布バイナリが動かない環境で使う（ARM 版 Windows・Intel Mac）
 
-バイナリは GitHub Actions（[build.yml](.github/workflows/build.yml)）が
-[spinel](https://github.com/matz/spinel) でビルドする。認証情報を埋め込まないので
-CI ビルド・公開配布ができる。
-
-新しいバージョンを出すにはタグを push するだけ:
-
-```bash
-git tag v1.0.0 && git push origin v1.0.0
-```
-
-Linux x86-64（WSL 用）と macOS arm64 のバイナリが Releases に添付される。
-タグなしで試すときは Actions タブから `workflow_dispatch` で実行すると
-artifact ができる。
-
-### 手動ビルド（ARM 版 Windows・Intel Mac など）
-
-spinel はクロスコンパイルしないので、動かす環境上でビルドする。
+Releases に置いてあるのは Linux x86-64 と macOS arm64 の 2 つだけ。
+`Exec format error` が出るなど、どちらも動かない環境では自分でビルドする
+（[spinel](https://github.com/matz/spinel) はクロスコンパイルしないので、
+動かす環境そのものの上でビルドする）。
 
 ```bash
 # WSL の場合の事前準備
@@ -182,39 +224,8 @@ git clone https://github.com/tukumanalab/bambu-access-code-keeper.git
 spinel/bin/spinel bambu-access-code-keeper/patch_access_code.rb -o patch_access_code
 ```
 
-### なぜ WSL なのか
-
-spinel は Windows ネイティブのバイナリを出力できない。runtime に `_WIN32` の
-分岐が無く、生成される C が `sys/mman.h`・`pwd.h`・`fnmatch.h`・`sys/wait.h`
-などを無条件で include するため、mingw ではコンパイルが通らない。これは
-ビルド設定の問題ではなく runtime 移植が必要な話なので、spinel 公式の方針どおり
-WSL 上で動かす。WSL からは Windows の C ドライブが `/mnt/c` として見えるので、
-Windows 側の設定ファイルはそのまま書き換えられる。
+できた `patch_access_code` は、ダウンロードしたバイナリと同じように使える。
 
 ---
 
-## リポジトリ構成
-
-| ファイル | 用途 |
-|---|---|
-| `patch_access_code.rb` | 書き戻し処理の本体。spinel でバイナリ化する |
-| `.github/workflows/build.yml` | タグ push で各 OS 向けバイナリをビルドして Releases に添付 |
-
-`access_codes.txt` / `access_codes.json`（`-f` やカレントディレクトリ検出で
-使う場合）は `.gitignore` で除外してあり、コミットされない。
-
-## 実装メモ
-
-spinel は Ruby の AOT コンパイラで、使えるのは型推論が通る範囲の Ruby に限られる。
-この用途で引っかかった点:
-
-**JSON ライブラリが無い。** conf をパースして書き戻すのではなく、
-`user_access_code` のオブジェクトを波括弧の対応を数えて特定し、その範囲だけを
-テキストとして差し替えている。結果として他の設定は 1 バイトも変わらない。
-アクセスコード一覧の入力形式を空白区切りのプレーンテキストにしたのも同じ理由で、
-これなら数行のトークン走査で読める。貼り付けに引用符が含まれる場合だけは
-JSON とみなし、引用符で囲まれた文字列を順に組にして拾う。
-
-**`Dir.glob` は末尾要素のワイルドカードしか展開しない。** CRuby と違い
-`/mnt/c/Users/*/AppData/...` がマッチしないので、`Dir.entries` で
-ユーザーディレクトリを自前で走査している。
+ビルドやリリースの手順、実装上の判断は [DEVELOPMENT.md](DEVELOPMENT.md) にまとめてある。
