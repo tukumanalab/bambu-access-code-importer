@@ -1,5 +1,6 @@
 # --- 認証情報（絶対にコミットしない）---
 # プリンタの LAN モード用アクセスコード
+access_codes.txt
 access_codes.json
 
 # --- ビルド成果物 ---

@@ -11,9 +11,11 @@
 # こうすると他の設定は 1 バイトも変わらない。
 
 # アクセスコードは実行時に受け取る (優先順):
-#   1. -f FILE で指定した JSON ファイル
-#   2. カレントディレクトリの access_codes.json
+#   1. -f FILE で指定したファイル
+#   2. カレントディレクトリの access_codes.txt (無ければ access_codes.json)
 #   3. どちらも無ければ、その場で貼り付けてもらう
+# 形式は 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
+# JSON を貼り付けても読み取れる。
 # バイナリにもこのソースにも認証情報は含まれないので、そのまま配布できる。
 
 KEY = "user_access_code"
@@ -129,29 +131,68 @@ def valid_token?(s)
   true
 end
 
-# 貼り付け・ファイルのテキストから "シリアル": "コード" の組を取り出す。
-# JSON として厳密に解析せず、引用符で囲まれた文字列を順に拾うので、
-# 前後に余計な行が混ざっていても動く。
+# 行からトークン (英数字・_・- の連続) を取り出す。# 以降はコメント。
+def line_tokens(line)
+  tokens = []
+  buf = ""
+  i = 0
+  while i < line.length
+    c = line[i]
+    break if c == "#"
+    if TOKEN_CHARS.index(c).nil?
+      if buf != ""
+        tokens << buf
+        buf = ""
+      end
+    else
+      buf = buf + c.to_s
+    end
+    i += 1
+  end
+  tokens << buf if buf != ""
+  tokens
+end
+
+# 貼り付け・ファイルのテキストからアクセスコード一覧を読み取る。
+# 基本形式は 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
+# テキストに引用符が含まれていれば JSON とみなし、引用符で囲まれた
+# 文字列を順に組にして拾う (前後に余計な行が混ざっていても動く)。
 def parse_codes(text)
   map = {}
-  parts = scan_strings(text)
-  i = 0
-  while i + 1 < parts.length
-    k = parts[i].to_s
-    v = parts[i + 1].to_s
-    map[k] = v if valid_token?(k) && valid_token?(v)
-    i += 2
+  unless text.index("\"").nil?
+    parts = scan_strings(text)
+    i = 0
+    while i + 1 < parts.length
+      k = parts[i].to_s
+      v = parts[i + 1].to_s
+      map[k] = v if valid_token?(k) && valid_token?(v)
+      i += 2
+    end
+    return map
+  end
+  start = 0
+  n = text.length
+  while start <= n
+    nl = text.index("\n", start)
+    line = nl.nil? ? text[start..-1].to_s : text[start...nl].to_s
+    tokens = line_tokens(line)
+    if tokens.length == 2
+      k = tokens[0].to_s
+      v = tokens[1].to_s
+      map[k] = v if valid_token?(k) && valid_token?(v)
+    end
+    break if nl.nil?
+    start = nl + 1
   end
   map
 end
 
 def read_pasted_codes
   puts ""
-  puts "アクセスコード一覧 (JSON) を貼り付けてください。"
-  puts "例:"
-  puts "  {"
-  puts "    \"0309FA5XXXXXXXX\": \"1a2b3c4d\""
-  puts "  }"
+  puts "アクセスコード一覧を貼り付けてください。"
+  puts "1 行に 1 台、「シリアル番号 アクセスコード」を空白区切りで:"
+  puts "  0309FA5XXXXXXXX 1a2b3c4d"
+  puts "  01P09C4XXXXXXXX 12345678"
   puts "貼り付け後、空行 (Enter) で確定します。"
   buf = ""
   depth = 0
@@ -261,6 +302,9 @@ if codes_file != ""
     exit 1
   end
   codes = parse_codes(File.read(codes_file))
+elsif File.exist?("access_codes.txt")
+  puts "カレントディレクトリの access_codes.txt を使います。"
+  codes = parse_codes(File.read("access_codes.txt"))
 elsif File.exist?("access_codes.json")
   puts "カレントディレクトリの access_codes.json を使います。"
   codes = parse_codes(File.read("access_codes.json"))
@@ -270,7 +314,7 @@ end
 
 if codes.empty?
   puts "アクセスコードが読み取れませんでした。"
-  puts "\"シリアル番号\": \"アクセスコード\" の形式で貼り付けてください。"
+  puts "1 行に 1 台、「シリアル番号 アクセスコード」の形式で貼り付けてください。"
   exit 1
 end
 
