@@ -58,6 +58,46 @@ spinel は Windows ネイティブのバイナリを出力できない。runtime
 WSL 上で動かす。WSL からは Windows の C ドライブが `/mnt/c` として見えるので、
 Windows 側の設定ファイルはそのまま書き換えられる。
 
+## conf のキーの意味（Bambu Studio 側の実装）
+
+アクセスコードに関係するキーが 3 つある。挙動は BambuStudio のソース
+（`src/slic3r/GUI/DeviceCore/DevManager.cpp`、`src/slic3r/GUI/DeviceManager.cpp`）で確認した。
+
+| キー | 意味 |
+|---|---|
+| `user_access_code` | ユーザーが入力したアクセスコードの保管場所。**このツールが書くのはここ** |
+| `access_code` | Studio がそのプリンタとの通信に使う作業用のコピー |
+| `user_access_dev_ip` | プリンタの IP を `slicer_uuid` で暗号化したもの |
+
+プリンタが LAN 上で見つかると、Studio は `DevManager.cpp` で
+`access_code` と `user_access_code` の両方を dev_id 引きで読み込む。
+したがって**同じネットワークにいて発見できるプリンタなら、
+`user_access_code` に書いておくだけでコードが効く**。これが一括登録が
+成立する根拠。
+
+`user_access_dev_ip` は `restore_local_machines_from_user_access_config()`
+専用で、発見を待たずに IP へ直接つなぎ直す近道に使われる。この関数は
+`user_access_dev_ip` が無いエントリを `continue` で読み飛ばすため、
+ここに値が無いプリンタはこの経路では復元されない（発見経由なら問題ない）。
+値は `BBLCrossTalk::Decode_DevIp(encoded, slicer_uuid)` で復号される
+インストール固有の暗号文なので、**このツールから生成することはできない**。
+
+### 登録したコードが消える条件
+
+`DevManager.cpp` に次の処理がある。
+
+```cpp
+if (obj && obj->is_cloud_mode_printer()) {
+    obj->erase_user_access_code();
+    obj->erase_user_access_dev_ip();
+}
+```
+
+`erase_user_access_code()` は `app_config->erase("user_access_code", dev_id)`
+を呼ぶので、**クラウドモードとして認識されたプリンタのエントリは
+conf から削除される**。登録したのに件数が減っている場合は、
+そのプリンタが LAN オンリーモードになっていない。
+
 ## 実装メモ
 
 spinel は Ruby の AOT コンパイラで、使えるのは型推論が通る範囲の Ruby に限られる。
