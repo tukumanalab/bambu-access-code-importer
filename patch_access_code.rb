@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# BambuStudio.conf の "user_access_code" にアクセスコードを書き戻す。
+# BambuStudio.conf の "user_access_code" にアクセスコードをまとめて登録する。
 # spinel (https://github.com/matz/spinel) で単一バイナリにコンパイルして使う。
 #
 #   spinel patch_access_code.rb -o patch_access_code
