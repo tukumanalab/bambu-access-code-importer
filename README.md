@@ -91,6 +91,13 @@ Retype new password:     ← もう一度 tukumana
 
 `tukumana@PC名:~$` のような表示が出れば完了。
 
+ユーザー作成の前後で `Would you like to opt-in to ...` という確認が出ることが
+ある。これは Ubuntu が利用状況の統計（ハードウェア構成・タイムゾーン・言語など、
+個人や PC を特定しない匿名データ）を送ってよいか尋ねるもので、
+**このツールとは何の関係もない**。`n` を入力して断って構わない
+（`y` でも動作は変わらない）。ここでの回答は Windows 側に記憶され、
+次に別の Ubuntu を入れたときも同じ答えが使われる。
+
 **1. Bambu Studio を終了する**
 
 これは必須。Bambu Studio は終了時に `BambuStudio.conf` を自分の内容で
