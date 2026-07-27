@@ -17,7 +17,7 @@
 # 形式は 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
 # バイナリにもこのソースにも認証情報は含まれないので、そのまま配布できる。
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 KEY = "user_access_code"
 INDENT = "    "
@@ -268,8 +268,6 @@ while i < ARGV.length
   i += 1
 end
 
-puts "patch_access_code " + VERSION
-
 if path == ""
   found = []
   candidate_paths.each do |p|
@@ -288,32 +286,11 @@ end
 
 if path == ""
   puts "BambuStudio.conf が見つかりませんでした。"
-  puts ""
   puts "探した場所:"
-  candidates = candidate_paths
-  if candidates.empty?
-    puts "  (候補なし)"
+  candidate_paths.each do |p|
+    puts "  " + p
   end
-  candidates.each do |p|
-    puts "  なし: " + p
-  end
-  puts ""
-  if Dir.exist?(WSL_ROOT)
-    names = []
-    Dir.entries(WSL_ROOT).each do |n|
-      names << n if n != "." && n != ".."
-    end
-    puts WSL_ROOT + " にあるユーザー: " + names.join(", ")
-  else
-    puts WSL_ROOT + " がありません (WSL 以外で実行しているか、C ドライブ以外に Windows がある)"
-  end
-  puts ""
-  puts "上に自分のユーザー名があるのに見つからない場合、Bambu Studio の設定は"
-  puts "別の場所にあります。Windows の PowerShell で次を実行して探してください:"
-  puts "  dir $env:APPDATA\\BambuStudio\\BambuStudio.conf"
-  puts ""
-  puts "分かったパスは /mnt/c/... の形にして引数で渡します:"
-  puts "  patch_access_code \"/mnt/c/Users/ユーザー名/AppData/Roaming/BambuStudio/BambuStudio.conf\""
+  puts "パスを引数で指定してください: patch_access_code <BambuStudio.conf のパス>"
   exit 1
 end
 
@@ -325,9 +302,7 @@ end
 puts "対象: " + path
 
 unless File.writable?(path)
-  puts ""
-  puts "!! このファイルに書き込む権限がありません。"
-  puts "   Windows 側で読み取り専用になっていないか確認してください。"
+  puts "このファイルに書き込む権限がありません: " + path
   exit 1
 end
 
@@ -396,44 +371,11 @@ File.write(path, updated)
 
 # 書いたつもりで書けていないことがある (権限、別プロセスによる復元など)。
 # 必ず読み直して確認する。
-unless File.exist?(backup)
-  puts ""
-  puts "!! バックアップを作成できませんでした: " + backup
-  puts "   このディレクトリに書き込む権限があるか確認してください。"
-  exit 1
-end
-
-check = File.read(path)
-if check != updated
-  puts ""
-  puts "!! 書き込みが反映されていません。"
-  puts "   対象: " + path
-  puts "   書き込もうとしたサイズ: " + updated.length.to_s + " バイト"
-  puts "   実際のファイルのサイズ: " + check.length.to_s + " バイト"
-  puts ""
-  puts "   考えられる原因:"
-  puts "   - Bambu Studio が起動したままで、設定を書き戻している"
-  puts "   - このファイルに書き込む権限がない (読み取り専用など)"
-  puts "   - 別のユーザーの conf を対象にしている (上の「対象:」を確認)"
-  puts ""
-  puts "   元の内容は " + backup + " に残してあります。"
-  exit 1
-end
-
-after = existing_entries(check)
-missing = []
-codes.each do |k, v|
-  missing << k if after[k] != v
-end
-unless missing.empty?
-  puts ""
-  puts "!! 書き込み後の確認で " + missing.length.to_s + " 件が見つかりません。"
-  missing.each do |k|
-    puts "   " + k
-  end
-  puts "   元の内容は " + backup + " に残してあります。"
+if File.read(path) != updated
+  puts "書き込みが反映されていません。Bambu Studio を終了してから試してください。"
+  puts "元の内容は " + backup + " に残してあります。"
   exit 1
 end
 
 puts "バックアップ: " + backup
-puts "アクセスコードを書き込みました。(確認済み: " + after.length.to_s + " 件)"
+puts "アクセスコードを書き込みました。"
