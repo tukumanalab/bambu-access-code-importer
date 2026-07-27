@@ -17,6 +17,8 @@
 # 形式は 1 行 1 台の「シリアル番号 アクセスコード」(空白区切り)。
 # バイナリにもこのソースにも認証情報は含まれないので、そのまま配布できる。
 
+VERSION = "1.0.3"
+
 KEY = "user_access_code"
 INDENT = "    "
 TOKEN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
@@ -252,7 +254,10 @@ codes_file = ""
 i = 0
 while i < ARGV.length
   a = ARGV[i]
-  if a == "-n" || a == "--dry-run"
+  if a == "-v" || a == "--version"
+    puts "patch_access_code " + VERSION
+    exit 0
+  elsif a == "-n" || a == "--dry-run"
     dry_run = true
   elsif a == "-f" || a == "--codes"
     i += 1
@@ -262,6 +267,8 @@ while i < ARGV.length
   end
   i += 1
 end
+
+puts "patch_access_code " + VERSION
 
 if path == ""
   found = []

@@ -22,6 +22,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check VERSION matches tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          tag="${GITHUB_REF#refs/tags/v}"
+          src=$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' patch_access_code.rb)
+          echo "tag=$tag source=$src"
+          test "$tag" = "$src"
+
       - name: Build spinel
         run: |
           git clone --depth 1 https://github.com/matz/spinel.git "$RUNNER_TEMP/spinel"
@@ -36,6 +44,7 @@ jobs:
 
       - name: Smoke test
         run: |
+          "dist/patch_access_code-${{ matrix.target }}" --version
           printf '{\n    "user_access_code": {\n        "0EXIST1": "11111111"\n    }\n}\n' > "$RUNNER_TEMP/test.conf"
           printf '# comment\n0309FA5TEST 1a2b3c4d\n' | "dist/patch_access_code-${{ matrix.target }}" "$RUNNER_TEMP/test.conf"
           grep -q '"0309FA5TEST": "1a2b3c4d"' "$RUNNER_TEMP/test.conf"

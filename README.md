@@ -195,6 +195,12 @@ xattr -d com.apple.quarantine ~/Downloads/patch_access_code-macos-arm64
 
 ### オプション
 
+バージョンを確認する（実行時にも先頭行に表示される）:
+
+```bash
+./patch_access_code-... --version
+```
+
 書き込まずに結果だけ見る:
 
 ```bash
