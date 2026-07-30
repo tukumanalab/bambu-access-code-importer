@@ -13,18 +13,84 @@ Bambu Studio にまとめて登録する**ツール。一度実行すれば、�
 の回避策にもなる。仕組みとしては `BambuStudio.conf` の `user_access_code` に
 一覧を書き込んでいるだけで、他の設定には触れない。
 
-アクセスコードは**実行時に貼り付けて渡す**方式なので、配布バイナリにも
-このリポジトリにも認証情報は一切含まれない。バイナリは
-[Releases](../../releases) からダウンロードするだけで誰でも使える。
+ラボで配るバイナリには**アクセスコードを埋め込んである**ので、使う人の操作は
+ダウンロードしてダブルクリックするだけ。ターミナルもコピペも要らない。
 
-## 使い方
+> **注意:** 埋め込み済みのバイナリはアクセスコードそのもの。ラボ内からしか
+> アクセスできない場所に置くこと。公開リポジトリの
+> [Releases](../../releases) にあるバイナリにはコードは入っていない
+> （実行時に貼り付ける版）。
 
-### 準備（管理する人が一度だけ）
+## 使い方（使う人の手順）
+
+登録した内容は Bambu Studio を再起動しても残るので、実行は基本的に一度でよい
+（プリンタが増えて配布物が更新されたら、また実行する）。
+
+### 1. Bambu Studio を終了する
+
+これは必須。Bambu Studio は終了時に `BambuStudio.conf` を自分の内容で
+上書きするので、起動したまま書き換えても消える。画面を閉じただけでは
+終了していないことがあるので、タスクトレイ（時計の左の隠れたアイコン）や
+Dock に残っていないかも確認する。
+
+### 2. ラボ内の配布場所から、自分の PC 用のファイルをダウンロードする
+
+| PC | ファイル |
+|---|---|
+| Windows | `patch_access_code-windows-x86.exe` |
+| Mac（M1 以降） | `patch_access_code-macos-arm64` |
+| Mac（Intel） | `patch_access_code-macos-x64` |
+
+Windows 用は 32bit の exe を 1 つだけ配れば、x64 でも ARM でも動く。
+CPU に合わせた `-windows-x64.exe` / `-windows-arm64.exe` もあるが、
+**取り違えると「このアプリはお使いの PC で実行できません」で止まる**ので、
+配布場所には 1 つだけ置くほうがよい（処理内容は同じで、速度差も出ない）。
+
+### 3. 実行する
+
+**Windows:** ダウンロードしたファイルをダブルクリックする。
+
+「Windows によって PC が保護されました」と出たら、**「詳細情報」→「実行」**
+と進む。作成元が登録されていないソフトすべてに出る警告で、初回だけ聞かれる。
+
+**Mac:** ダウンロードしたファイルをダブルクリックする（ターミナルが開いて
+実行される）。「開発元を確認できないため開けません」と止められたら、
+Spotlight（`⌘ + スペース`）で「ターミナル」を開き、次を実行してからやり直す。
+ダウンロードしたファイルに付く検疫マークを外す操作。
+
+```bash
+xattr -d com.apple.quarantine ~/Downloads/patch_access_code-macos-arm64
+chmod +x ~/Downloads/patch_access_code-macos-arm64
+```
+
+### 4. 表示を確認して Enter
+
+設定ファイルを自動で見つけ、埋め込まれた一覧を書き込む。
+
+```
+patch_access_code 2.0.0
+対象: C:\Users\ユーザー名\AppData\Roaming\BambuStudio\BambuStudio.conf
+埋め込み済みのアクセスコード一覧を使います。
+  01P09C4XXXXXXXX => 12345678
+  0309FA5XXXXXXXX => 1a2b3c4d
+既存 2 件 / 追加 7 件 / 更新 0 件 → 合計 9 件
+バックアップ: ...\BambuStudio.conf.bak-20260729185633
+アクセスコードを書き込みました。
+Bambu Studio を起動して、LAN モードで接続できることを確認してください。
+
+Enter キーを押すと終了します...
+```
+
+conf に元からあったエントリはマージされて消えない。
+
+### 5. Bambu Studio を起動して、プリンタに LAN モードで接続できることを確認する
+
+## 配る人の手順
+
+### 準備（一度だけ）
 
 全台分のアクセスコードを、1 行に 1 台「シリアル番号 アクセスコード」を
-空白区切りで並べたテキストにまとめ、メンバーだけが見られる場所
-（プライベートな Wiki・Notion・パスワードマネージャーなど）に掲載しておく。
-使う人はこれをコピペするだけで済む。
+空白区切りで並べた `access_codes.txt` にまとめる。
 
 ```
 # 3F 実習室
@@ -37,216 +103,63 @@ Bambu Studio にまとめて登録する**ツール。一度実行すれば、�
 
 シリアル番号とアクセスコードは Bambu Studio の
 「デバイス」→ 対象プリンタ →「ネットワーク」で確認できる。
-プリンタを増やしたらこの一覧に 1 行足すだけで、以後は各自が再実行すれば行き渡る。
 
-> **注意:** この一覧はプリンタの認証情報そのもの。誰でも見られる場所には
-> 置かないこと。
+この `access_codes.txt` は `.gitignore` で除外してあり、コミットされない。
 
-### 登録する（使う人の手順）
+### ビルドして配る
 
-一覧を掲載した場所を開いておき、自分の OS の手順に進む。
-登録した内容は Bambu Studio を再起動しても残るので、実行は基本的に一度でよい
-（プリンタが増えて一覧が更新されたら、また実行する）。
-
-#### Windows の場合（WSL 経由）
-
-このツールは Windows 版のバイナリを作れないため、Windows に標準で用意されている
-Linux 環境（WSL）から実行する。WSL からは Windows のドライブが見えるので、
-Windows 側の設定ファイルをそのまま書き換えられる。
-
-**0. WSL が使えることを確認する（初回だけ）**
-
-スタートメニューで「PowerShell」を開き、次を実行する。
-
-```powershell
-wsl -l -v
-```
-
-Ubuntu などの名前が表示されれば準備できている。「WSL がインストールされて
-いません」といったメッセージが出たら、次を実行して PC を再起動する。
-
-```powershell
-wsl --install
-```
-
-再起動後に Ubuntu が自動で立ち上がり、`Create a default Unix user account.`
-（Linux 側のユーザーを作る）と表示される。ここで決めるのは Linux 側だけの
-アカウントで、**Windows のユーザー名やパスワードとは無関係**。
-迷ったら**ユーザー名もパスワードも `tukumana`** と入力すればよい。
-
-```
-Enter new UNIX username: tukumana
-New password:            ← tukumana と打つ（画面には何も出ない）
-Retype new password:     ← もう一度 tukumana
-```
-
-- **パスワードは入力しても画面に何も表示されない**（`*` すら出ない）。
-  故障ではないので、そのまま打って Enter を押す。
-- このパスワードは、この PC の Linux 環境の中で管理者操作（`sudo`）をするとき
-  にだけ使う。ネットワーク越しに使われるものではないので、覚えやすいもので
-  構わない。このツールを使うだけなら入力する場面もない。
-- ユーザー名を変えたい場合は、半角小文字の英字で始める名前にする
-  （大文字・空白・日本語は使えない）。その場合、以降の説明に出てくる
-  `tukumana` は自分が決めた名前に読み替える。
-
-`tukumana@PC名:~$` のような表示が出れば完了。
-
-ユーザー作成の前後で `Would you like to opt-in to ...` という確認が出ることが
-ある。これは Ubuntu が利用状況の統計（ハードウェア構成・タイムゾーン・言語など、
-個人や PC を特定しない匿名データ）を送ってよいか尋ねるもので、
-**このツールとは何の関係もない**。`n` を入力して断って構わない
-（`y` でも動作は変わらない）。ここでの回答は Windows 側に記憶され、
-次に別の Ubuntu を入れたときも同じ答えが使われる。
-
-**1. Bambu Studio を終了する**
-
-これは必須。Bambu Studio は終了時に `BambuStudio.conf` を自分の内容で
-上書きするので、起動したまま書き換えても消える。画面を閉じただけでは
-終了していないことがあるので、タスクトレイ（時計の左の隠れたアイコン）に
-残っていないかも確認する。
-
-**2. [Releases](../../releases) から `patch_access_code-linux-x86_64` をダウンロードする**
-
-ブラウザで開いて、最新版の Assets からファイル名をクリックする。
-そのまま「ダウンロード」フォルダに保存する。
-
-**3. WSL を開く**
-
-スタートメニューで「Ubuntu」（または `wsl --install` で入れた
-ディストリビューション名）を選ぶ。黒いターミナル画面が開く。
-
-**4. バイナリを WSL 側にコピーして実行する**
-
-次の 3 行を 1 行ずつ実行する。`<Windowsのユーザー名>` は
-`C:\Users\` の下にある自分のフォルダ名に置き換える。
+[Go](https://go.dev/dl/) を入れて（`brew install go`）、リポジトリの直下で
+実行する。
 
 ```bash
-cp /mnt/c/Users/<Windowsのユーザー名>/Downloads/patch_access_code-linux-x86_64 ~/
-chmod +x ~/patch_access_code-linux-x86_64
-~/patch_access_code-linux-x86_64
+./build.sh                    # access_codes.txt を埋め込む
+./build.sh path/to/list.txt   # 一覧の場所を指定する
 ```
 
-- `/mnt/c` は WSL から見た Windows の C ドライブ。つまり 1 行目は
-  「ダウンロードしたファイルを Linux 側にコピーする」という意味。
-- 2 行目でファイルに実行の許可を与え、3 行目で実行する。
-- ユーザー名が分からなければ、`ls /mnt/c/Users` を実行すると一覧が出る。
-- `/mnt/c` から直接実行できることも多いが、ドライブのマウント設定によっては
-  実行権限を付けられないため、WSL 側のホーム（`~/`）に置くのが確実。
+`dist/` に全 OS 分のバイナリができるので、**ラボ内からしかアクセスできない
+場所**に置く。ビルドの途中で埋め込んだ一覧の中身と件数が表示されるので、
+配る前にそこを確認する。
 
-引数なしで実行すると `/mnt/c/Users/` 配下を走査して
-`AppData/Roaming/BambuStudio/BambuStudio.conf` を自動で見つける。
+置くのは使う人が選ぶ 3 つ（Windows は `-windows-x86.exe`、Mac は
+`-macos-arm64` と `-macos-x64`）だけにする。似た名前のファイルが並んでいると
+取り違えが起きる。
 
-**5. アクセスコード一覧をコピーして、ターミナルに貼り付ける**
+プリンタを増やしたときは、`access_codes.txt` に 1 行足して `./build.sh` を
+実行し直し、置き場所のファイルを差し替える。各自がもう一度ダウンロードして
+実行すれば行き渡る。
 
-掲載場所から一覧をまるごとコピーし、プロンプトに貼り付けて Enter を押す。
+## オプション
 
-> **貼り付けは `Ctrl+V` では効かない。** ターミナル内で**右クリック**するか、
-> `Ctrl+Shift+V` を押す。
-
-```
-対象: /mnt/c/Users/ユーザー名/AppData/Roaming/BambuStudio/BambuStudio.conf
-
-アクセスコード一覧を貼り付けてください。
-1 行に 1 台、「シリアル番号 アクセスコード」を空白区切りで:
-  0309FA5XXXXXXXX 1a2b3c4d
-  01P09C4XXXXXXXX 12345678
-貼り付け後、空行 (Enter) で確定します。
-  01P09C4XXXXXXXX => 12345678
-  0309FA5XXXXXXXX => 1a2b3c4d
-既存 2 件 / 追加 7 件 / 更新 0 件 → 合計 9 件
-バックアップ: .../BambuStudio.conf.bak-20260727083225
-アクセスコードを書き込みました。
-```
-
-conf に元からあったエントリはマージされて消えない。
-
-**6. Bambu Studio を起動して、プリンタに LAN モードで接続できることを確認する**
-
-#### macOS の場合
-
-Apple シリコン（M1 以降）の Mac 向け。手順の考え方は Windows と同じで、
-Bambu Studio を終了 → 実行 → 一覧を貼り付け、の順。
-
-**1. Bambu Studio を終了する**（メニューの「Bambu Studio」→「終了」）
-
-**2. [Releases](../../releases) から `patch_access_code-macos-arm64` をダウンロードする**
-
-**3.「ターミナル」を開いて実行する**
-
-Spotlight（`⌘ + スペース`）で「ターミナル」と入力して開き、次を実行する。
+ふだんは要らないが、うまくいかないときの手掛かりになる。
 
 ```bash
-chmod +x ~/Downloads/patch_access_code-macos-arm64
-~/Downloads/patch_access_code-macos-arm64
+patch_access_code --version          # バージョンを表示する
+patch_access_code -n                 # 書き込まずに結果だけ見る
+patch_access_code -f access_codes.txt # 埋め込みの代わりに一覧のファイルを使う
+patch_access_code <conf のパス>       # 対象を明示する（自動検出が外れた場合）
 ```
 
-`~/Library/Application Support/BambuStudio/BambuStudio.conf` を自動検出する。
+実行ファイルと同じフォルダに `access_codes.txt` を置いた場合も、それが使われる
+（埋め込みより優先度は低い）。埋め込みも一覧ファイルも無い版では、実行時に
+一覧の貼り付けを求められる。
 
-「開発元を確認できないため開けません」と止められたら、次を実行してから
-やり直す（ダウンロードしたファイルに付く検疫マークを外す操作）。
-
-```bash
-xattr -d com.apple.quarantine ~/Downloads/patch_access_code-macos-arm64
-```
-
-**4. アクセスコード一覧を貼り付けて Enter**（`⌘ + V` で貼り付けられる）
-
-**5. Bambu Studio を起動して、LAN モードで接続できることを確認する**
-
-### オプション
-
-バージョンを確認する:
-
-```bash
-./patch_access_code-... --version
-```
-
-書き込まずに結果だけ見る:
-
-```bash
-./patch_access_code-... -n
-```
-
-貼り付けの代わりに一覧のファイルを渡す:
-
-```bash
-./patch_access_code-... -f access_codes.txt
-```
-
-カレントディレクトリに `access_codes.txt` があれば、貼り付けを求めずに
-それを自動で使う。
-
-conf のパスを明示する（自動検出が外れた場合や、別ユーザーの設定を触る場合）:
-
-```bash
-./patch_access_code-... "/mnt/c/Users/別のユーザー/AppData/Roaming/BambuStudio/BambuStudio.conf"
-```
-
-### 元に戻す
+## 元に戻す
 
 実行のたびにタイムスタンプ付きのバックアップが conf と同じディレクトリにできる。
 
 ```bash
-cp BambuStudio.conf.bak-20260727083225 BambuStudio.conf
+cp BambuStudio.conf.bak-20260729185633 BambuStudio.conf
 ```
 
-### うまくいかないとき
+## うまくいかないとき
 
 **`BambuStudio.conf が見つかりませんでした`**
 
-Bambu Studio を一度も起動していないか、パスが標準と違う。PowerShell で
-`echo $env:APPDATA` を実行して場所を確かめ、パスを引数で渡す。
+Bambu Studio を一度も起動していないか、パスが標準と違う。探した場所が画面に
+出るので、そこと実際の場所を見比べて、パスを引数で渡す。
 
-**`Permission denied`（WSL）**
-
-`/mnt/c` から直接実行しようとしている可能性が高い。WSL 側のホームに
-コピーしてから `chmod +x` する。
-
-**`cannot execute binary file: Exec format error`**
-
-ARM 版 Windows で x86-64 バイナリを動かそうとしている。
-[配布バイナリが動かない環境で使う](#配布バイナリが動かない環境で使うarm-版-windowsintel-mac)
-の手順を WSL 内でそのまま実行すれば、その環境向けのバイナリができる。
+- Windows: `%APPDATA%\BambuStudio\BambuStudio.conf`
+- macOS: `~/Library/Application Support/BambuStudio/BambuStudio.conf`
 
 **書き換えたのに Bambu Studio でコードが消えている**
 
@@ -265,33 +178,10 @@ LAN オンリーモードを有効にしてから、もう一度実行する。
 コードは自動で使われるが、見つからない状態では効かない。プリンタの電源と
 ネットワーク接続を確認する。
 
-**アクセスコードが読み取れませんでした**
+**画面が一瞬で閉じてしまう / 文字化けする**
 
-貼り付けた内容から「シリアル番号 アクセスコード」の組が見つからなかった。
-一覧をまるごとコピーしているか確認する。1 行に空白区切りでちょうど
-2 項目ある行だけがエントリとして読み取られる（`#` 以降はコメント）。
-
----
-
-## 配布バイナリが動かない環境で使う（ARM 版 Windows・Intel Mac）
-
-Releases に置いてあるのは Linux x86-64 と macOS arm64 の 2 つだけ。
-`Exec format error` が出るなど、どちらも動かない環境では自分でビルドする
-（[spinel](https://github.com/matz/spinel) はクロスコンパイルしないので、
-動かす環境そのものの上でビルドする）。
-
-```bash
-# WSL の場合の事前準備
-sudo apt install -y build-essential git
-
-git clone --depth 1 https://github.com/matz/spinel.git
-cd spinel && make deps && make      # bin/spinel ができる
-cd ..
-git clone https://github.com/tukumanalab/bambu-access-code-importer.git
-spinel/bin/spinel bambu-access-code-importer/patch_access_code.rb -o patch_access_code
-```
-
-できた `patch_access_code` は、ダウンロードしたバイナリと同じように使える。
+処理が終わると `Enter キーを押すと終了します...` で待つので、通常は閉じない。
+それより前に閉じる場合は、ウイルス対策ソフトに止められている可能性がある。
 
 ---
 

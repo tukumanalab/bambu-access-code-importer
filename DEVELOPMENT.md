@@ -7,56 +7,53 @@
 
 | ファイル | 用途 |
 |---|---|
-| `patch_access_code.rb` | 登録処理の本体。spinel でバイナリ化する |
-| `.github/workflows/build.yml` | タグ push でビルドして Releases に添付 |
+| `main.go` | 登録処理の本体 |
+| `console_windows.go` / `console_other.go` | コンソールのコードページと端末判定 |
+| `main_test.go` | 一覧の読み取りと conf の書き換えのテスト |
+| `build.sh` | アクセスコードを埋め込んだ配布用バイナリを作る |
+| `.github/workflows/build.yml` | テストと、埋め込まない版のビルド・リリース |
 
-アクセスコードはバイナリにもソースにも含まれない（実行時に貼り付けるか
-`-f` で渡す）。手元に置く `access_codes.txt` は `.gitignore` で除外済み
-（廃止した `access_codes.json` も、古い手元コピーが残っていても
-コミットされないよう除外したままにしてある）。
+## ビルドは 2 種類ある
 
-## リリース手順
+| | 作り方 | 中身 | 置き場所 |
+|---|---|---|---|
+| 埋め込み版 | 手元で `./build.sh` | アクセスコード入り | ラボ内からしか見えない場所 |
+| 貼り付け版 | CI（タグ push） | 認証情報なし | 公開 Releases |
 
-タグを push すると GitHub Actions（[build.yml](.github/workflows/build.yml)）が
-[spinel](https://github.com/matz/spinel) をビルドしてバイナリを作り、
-Releases に添付する。
-
-```bash
-git tag v1.0.1 && git push origin v1.0.1
-```
-
-対象は Linux x86-64（WSL 用）と macOS arm64 の 2 つ。タグを打たずに試すときは
-Actions タブから `workflow_dispatch` で実行すると artifact ができる。
-
-ワークフローにはスモークテストが入っていて、コンパイルしたバイナリに
-実際にアクセスコードを流し込み、conf が書き換わることと既存エントリが
-残ることを確認してから artifact を上げる。
-
-## ローカルでビルドする
+ラボのメンバーが使うのは埋め込み版。貼り付け版は、このリポジトリを見つけた
+第三者が使えるようにするためのもので、実行時に一覧を貼り付けてもらう。
+CI が埋め込みをしないので、**公開 Releases に認証情報が載ることはない**。
 
 ```bash
-git clone --depth 1 https://github.com/matz/spinel.git
-cd spinel && make deps && make      # bin/spinel ができる
-cd ..
-spinel/bin/spinel patch_access_code.rb -o patch_access_code
+./build.sh                    # access_codes.txt を埋め込む
+./build.sh path/to/list.txt   # 一覧の場所を指定する
+./build.sh --no-codes         # 埋め込まない版
 ```
 
-spinel はクロスコンパイルしないので、動かす環境そのものの上でビルドする。
+対象は Windows x64 / Windows arm64 / macOS arm64 / macOS x64 / Linux x86-64。
+Go はクロスコンパイルするので、どれも 1 台の Mac から作れる。
 
-CRuby でもそのまま実行できるので、動作確認だけなら spinel は要らない。
+`build.sh` は全ターゲットを作る前に、ネイティブ版をその場でビルドして
+`-n`（dry-run）で走らせ、埋め込んだ一覧が期待どおり読めることを確かめる。
+書式が崩れていて 0 件になったバイナリを配ってしまう事故を防ぐため。
+
+### 埋め込みの仕組み
+
+一覧を base64 にして `-ldflags "-X main.embeddedCodesB64=..."` で渡している。
+base64 にするのは、空白と改行が消えて `-X` にそのまま載せられるから。
+
+作業ツリーには一切書き出さないので、ビルドの副産物として一覧がコミット
+されることはない。ただし**埋め込んだコードは `strings` で取り出せる**。
+難読化ではないので、置き場所で守るという前提を崩さないこと。
+
+## リリース手順（貼り付け版）
+
+タグを push すると CI がテストしてビルドし、Releases に添付する。
+`main.go` の `version` とタグが一致しないと失敗する。
 
 ```bash
-ruby patch_access_code.rb -n -f access_codes.txt path/to/BambuStudio.conf
+git tag v2.0.0 && git push origin v2.0.0
 ```
-
-## なぜ Windows ネイティブでなく WSL なのか
-
-spinel は Windows ネイティブのバイナリを出力できない。runtime に `_WIN32` の
-分岐が無く、生成される C が `sys/mman.h`・`pwd.h`・`fnmatch.h`・`sys/wait.h`
-などを無条件で include するため、mingw ではコンパイルが通らない。これは
-ビルド設定の問題ではなく runtime 移植が必要な話なので、spinel 公式の方針どおり
-WSL 上で動かす。WSL からは Windows の C ドライブが `/mnt/c` として見えるので、
-Windows 側の設定ファイルはそのまま書き換えられる。
 
 ## conf のキーの意味（Bambu Studio 側の実装）
 
@@ -100,17 +97,46 @@ conf から削除される**。登録したのに件数が減っている場合�
 
 ## 実装メモ
 
-spinel は Ruby の AOT コンパイラで、使えるのは型推論が通る範囲の Ruby に限られる。
-この用途で引っかかった点:
+**conf は JSON としてパースし直さない。** `user_access_code` のオブジェクトを
+波括弧の対応を数えて特定し、その範囲だけをテキストとして差し替えている。
+`encoding/json` で読み書きするとキーの順序やエスケープの流儀が変わって
+しまうが、この方法なら他の設定は 1 バイトも変わらない。値の中の波括弧を
+数えないよう、文字列リテラルの中は読み飛ばす（テストあり）。
 
-**JSON ライブラリが無い。** conf をパースして書き直すのではなく、
-`user_access_code` のオブジェクトを波括弧の対応を数えて特定し、その範囲だけを
-テキストとして差し替えている。結果として他の設定は 1 バイトも変わらない。
-アクセスコード一覧の入力形式を空白区切りのプレーンテキストにしたのも同じ理由で、
-これなら数行のトークン走査で読める。当初は JSON も受け付けていたが、
-「引用符があれば JSON」という判定だとコメントに引用符が入っただけで
-誤判定するため、形式は 1 つに絞った。
+**説明文をエントリと誤読しない条件。** 一覧の行を採用するのは、トークン
+（英数字・`_`・`-` の連続）がちょうど 2 つ、区切りが空白だけ、どちらも 6 文字
+以上のときだけ。`# 以降`はコメント。区切りと長さを見ないと「3F 実習室 4台」
+から `3F => 4` を拾ってしまい、埋め込み方式ではそれがそのまま conf に入る。
 
-**`Dir.glob` は末尾要素のワイルドカードしか展開しない。** CRuby と違い
-`/mnt/c/Users/*/AppData/...` がマッチしないので、`Dir.entries` で
-ユーザーディレクトリを自前で走査している。
+**一覧の取得元の優先順位。** `-f` → 埋め込み → 実行ファイルの隣またはカレント
+ディレクトリの `access_codes.txt` → 実行時の貼り付け。実行ファイルの隣を見るのは、
+Finder やエクスプローラから起動するとカレントディレクトリが別の場所になるため。
+
+**Windows のコンソール。** 旧来の conhost は既定のコードページが CP932 で、
+UTF-8 の日本語が化ける。起動時に `SetConsoleOutputCP(65001)` を呼んでいる。
+
+**ダブルクリック起動。** 終了時に窓が閉じて結果が読めなくなるので、端末に
+繋がっているときだけ Enter を待つ。判定は Windows では `GetConsoleMode` の
+成否、それ以外ではキャラクタデバイスかどうか（`/dev/null` は `os.SameFile`
+で除く）。パイプ経由の CI では待たない。
+
+## 検討して見送った案
+
+**spinel（Ruby AOT コンパイラ）。** 最初の実装はこれだった。Windows ネイティブ
+のバイナリを出力できず（runtime に `_WIN32` の分岐が無く、生成される C が
+`sys/mman.h`・`pwd.h` などを無条件で include する）、Windows のメンバーには
+WSL の導入を求めることになっていた。これが敷居として重かったので Go に移した。
+Go ならクロスコンパイルできるので、ARM 版 Windows・Intel Mac 用に各自が
+ビルドする案内も不要になった。
+
+**ブラウザ版（GitHub Pages + File System Access API）。** インストール不要で
+最も敷居が低いが、**書き込めない**。Chromium はブロックリストで
+`%APPDATA%`（`DIR_ROAMING_APP_DATA`）と macOS の `~/Library` を
+`kBlockAllChildren` として弾く
+（[`chrome_file_system_access_permission_context.cc`](https://chromium.googlesource.com/chromium/src/+/main/chrome/browser/file_system_access/chrome_file_system_access_permission_context.cc)）。
+`BambuStudio.conf` はどちらの直下にもあるので、ファイル選択の時点で拒否される。
+Safari・Firefox がそもそも `showOpenFilePicker` を持たない点も併せて見送り。
+
+**一覧を実行時に URL から取得する。** 1 ファイル配布のまま、プリンタを増やした
+ときに再配布が要らなくなる。埋め込みで運用してみて、更新のたびの配り直しが
+負担になるようならこちらに移る。
