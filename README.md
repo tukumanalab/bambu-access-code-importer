@@ -93,6 +93,29 @@ conf に元からあったエントリはマージされて消えない。
 
 ### 5. Bambu Studio を起動して、プリンタに LAN モードで接続できることを確認する
 
+## 設定ファイル `BambuStudio.conf` の場所
+
+書き込み先は自動で見つかるので、ふだんは気にしなくてよい。自動検出が外れて
+パスを引数で渡すときと、バックアップから戻すときに要る。
+
+| OS | 場所 |
+|---|---|
+| Windows | `%APPDATA%\BambuStudio\BambuStudio.conf`<br>実体は `C:\Users\ユーザー名\AppData\Roaming\BambuStudio\BambuStudio.conf` |
+| Mac | `~/Library/Application Support/BambuStudio/BambuStudio.conf`<br>`~` は自分のホーム、つまり `/Users/ユーザー名` |
+
+どちらも親フォルダが標準では隠れているので、そのまま辿ろうとすると見つからない。
+
+**Windows:** `Windows キー + R` を押し、`%APPDATA%\BambuStudio` と入力して Enter。
+そのフォルダが直接開く。エクスプローラで辿るなら、「表示」→「隠しファイル」に
+チェックを入れないと `AppData` が出てこない。
+
+**Mac:** Finder で `⌘ + ⇧ + G` を押し、
+`~/Library/Application Support/BambuStudio` と入力して Enter。
+メニューの「移動」に「ライブラリ」が出るのは Option キーを押している間だけ。
+
+ファイル自体が無い場合は、Bambu Studio をまだ一度も起動していない。起動して
+終了すると作られるので、そのうえで実行する。
+
 ## 配る人の手順
 
 ### 準備（一度だけ）
@@ -166,10 +189,8 @@ cp BambuStudio.conf.bak-20260729185633 BambuStudio.conf
 **`BambuStudio.conf が見つかりませんでした`**
 
 Bambu Studio を一度も起動していないか、パスが標準と違う。探した場所が画面に
-出るので、そこと実際の場所を見比べて、パスを引数で渡す。
-
-- Windows: `%APPDATA%\BambuStudio\BambuStudio.conf`
-- macOS: `~/Library/Application Support/BambuStudio/BambuStudio.conf`
+出るので、[設定ファイル `BambuStudio.conf` の場所](#設定ファイル-bambustudioconf-の場所)
+と見比べて、実際の場所をパスとして引数で渡す。
 
 **`access_codes.txt が見つかりませんでした`**
 
