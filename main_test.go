@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseCodes(t *testing.T) {
@@ -70,6 +73,76 @@ func TestCodesFileCandidates(t *testing.T) {
 			t.Errorf("同じ場所を 2 回探している: %q", p)
 		}
 		seen[p] = true
+	}
+}
+
+// %APPDATA% が %USERPROFILE% とずれている PC があり、環境変数だけを見ると
+// Bambu Studio が読まない conf を書き換えてしまう。ホーム由来の場所も候補に
+// 入れる。ふつうは両者が一致するので、そのときは 1 件に畳まれること。
+func TestCandidatePathsHasNoDuplicates(t *testing.T) {
+	got := candidatePaths()
+	if len(got) == 0 {
+		t.Fatal("候補が空になった")
+	}
+	seen := map[string]bool{}
+	for _, p := range got {
+		if seen[p] {
+			t.Errorf("同じ場所を 2 回探している: %q", p)
+		}
+		seen[p] = true
+		if filepath.Base(p) != "BambuStudio.conf" {
+			t.Errorf("ファイル名が違う: %q", p)
+		}
+	}
+}
+
+// 候補が複数あるとき、Bambu Studio が実際に使っているのは終了時に書き直された
+// いちばん新しいもの。端末でなければ聞かずにそれを選ぶ。
+func TestChooseConfPrefersNewest(t *testing.T) {
+	dir := t.TempDir()
+	old := filepath.Join(dir, "old.conf")
+	recent := filepath.Join(dir, "recent.conf")
+	for _, p := range []string{old, recent} {
+		if err := os.WriteFile(p, []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	past := time.Now().Add(-24 * time.Hour)
+	if err := os.Chtimes(old, past, past); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := chooseConf([]string{old, recent}); got != recent {
+		t.Errorf("新しいほうを選んでいない: got %q want %q", got, recent)
+	}
+	// 並び順に依存しないこと。
+	if got := chooseConf([]string{recent, old}); got != recent {
+		t.Errorf("並び順で結果が変わった: got %q want %q", got, recent)
+	}
+}
+
+func TestReadChoice(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want int
+	}{
+		{"\n", 0},        // Enter だけなら 1 件目
+		{"2\n", 1},       //
+		{" 3 \n", 2},     // 前後の空白は無視
+		{"", 0},          // 入力が尽きたら既定
+		{"x\n9\n2\n", 1}, // 範囲外・数字でない入力はやり直し
+		{"0\n1\n", 0},    // 0 は範囲外
+	} {
+		got := readChoice(bufio.NewReader(strings.NewReader(tc.in)), 3)
+		if got != tc.want {
+			t.Errorf("入力 %q: got %d want %d", tc.in, got, tc.want)
+		}
+	}
+}
+
+func TestChooseConfSingle(t *testing.T) {
+	if got := chooseConf([]string{"/a/BambuStudio.conf"}); got != "/a/BambuStudio.conf" {
+		t.Errorf("1 件のときはそのまま返すべき: %q", got)
 	}
 }
 

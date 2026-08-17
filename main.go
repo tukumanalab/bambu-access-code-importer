@@ -10,12 +10,19 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const version = "2.0.0"
+const version = "2.0.1"
+
+// 標準入力は 1 つの Reader で読む。読み手を作り直すと、先読みして
+// バッファに残った分を取りこぼす (conf を選んだ直後に一覧を貼り付ける
+// 流れで実際に起きる)。
+var stdin = bufio.NewReaderSize(os.Stdin, 64*1024)
 
 const (
 	key    = "user_access_code"
@@ -226,15 +233,111 @@ func wslPaths() []string {
 	return list
 }
 
+// ホームディレクトリから組み立てた設定ディレクトリ。
+// os.UserConfigDir() は環境変数をそのまま読むので、%APPDATA% が
+// %USERPROFILE% とずれている PC では別人の場所を指すことがある
+// (実際に、%APPDATA% だけが別フォルダを指していて、Bambu Studio が
+// 読まない conf を書き換えていた事例があった)。ホーム由来の場所も候補に
+// 入れておき、食い違ったときは利用者に選んでもらう。
+func homeConfigDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	switch runtime.GOOS {
+	case "windows":
+		return filepath.Join(home, "AppData", "Roaming")
+	case "darwin":
+		return filepath.Join(home, "Library", "Application Support")
+	default:
+		return filepath.Join(home, ".config")
+	}
+}
+
 // conf の探索順。まず OS 標準の設定ディレクトリ
 // (Windows: %APPDATA%, macOS: ~/Library/Application Support, Linux: ~/.config)、
-// 次に WSL から見た Windows 側。
+// 次にホーム由来の同じ場所、最後に WSL から見た Windows 側。
 func candidatePaths() []string {
-	var list []string
+	var dirs []string
 	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
-		list = append(list, filepath.Join(dir, "BambuStudio", "BambuStudio.conf"))
+		dirs = append(dirs, dir)
 	}
-	return append(list, wslPaths()...)
+	if dir := homeConfigDir(); dir != "" {
+		dirs = append(dirs, dir)
+	}
+
+	var list []string
+	seen := map[string]bool{}
+	add := func(p string) {
+		if !seen[p] {
+			seen[p] = true
+			list = append(list, p)
+		}
+	}
+	for _, dir := range dirs {
+		add(filepath.Join(dir, "BambuStudio", "BambuStudio.conf"))
+	}
+	for _, p := range wslPaths() {
+		add(p)
+	}
+	return list
+}
+
+// 候補が複数あるときの選択。Bambu Studio は終了時に conf を書き直すので、
+// 実際に使われているものがいちばん新しい。新しい順に並べて既定にするが、
+// 黙って選ぶと今回のような取り違えに気づけないので必ず確認を取る。
+func chooseConf(found []string) string {
+	if len(found) == 1 {
+		return found[0]
+	}
+
+	sort.SliceStable(found, func(i, j int) bool {
+		return confModTime(found[i]).After(confModTime(found[j]))
+	})
+
+	fmt.Printf("BambuStudio.conf が %d 件見つかりました。\n", len(found))
+	for i, p := range found {
+		fmt.Printf("  %d) %s  (更新 %s)\n",
+			i+1, p, confModTime(p).Format("2006-01-02 15:04:05"))
+	}
+	fmt.Println("Bambu Studio が実際に使っているのは、ふつういちばん新しいものです。")
+
+	// 貼り付けやパイプで動かしているときは聞かずに 1 件目を使う。
+	if !stdinIsTerminal() {
+		fmt.Println("1 件目を使います: " + found[0])
+		return found[0]
+	}
+
+	return found[readChoice(stdin, len(found))]
+}
+
+// 1 から n までの番号を読む。Enter だけなら 1 件目 (0 を返す)。
+func readChoice(r *bufio.Reader, n int) int {
+	for {
+		fmt.Printf("どれを使いますか (1-%d、Enter で 1): ", n)
+		line, err := r.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if line == "" {
+			// 入力が尽きたときも既定に倒す。答えられない状況で
+			// 聞き続けても、窓が流れるだけで何も選べない。
+			return 0
+		}
+		if i, convErr := strconv.Atoi(line); convErr == nil && i >= 1 && i <= n {
+			return i - 1
+		}
+		if err != nil {
+			return 0
+		}
+		fmt.Println("番号で答えてください。")
+	}
+}
+
+func confModTime(path string) time.Time {
+	info, err := os.Stat(path)
+	if err != nil {
+		return time.Time{}
+	}
+	return info.ModTime()
 }
 
 // ---- アクセスコード一覧の取得 ----
@@ -273,15 +376,17 @@ func readPastedCodes() map[string]string {
 	fmt.Println("貼り付け後、空行 (Enter) で確定します。")
 
 	var buf strings.Builder
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
+	for {
+		line, err := stdin.ReadString('\n')
+		line = strings.TrimRight(line, "\r\n")
 		if strings.TrimSpace(line) == "" && buf.Len() > 0 {
 			break
 		}
 		buf.WriteString(line)
 		buf.WriteString("\n")
+		if err != nil {
+			break
+		}
 	}
 	return parseCodes(buf.String())
 }
@@ -379,13 +484,8 @@ func run() int {
 			fmt.Println("パスを引数で指定してください: patch_access_code <BambuStudio.conf のパス>")
 			return 1
 		}
-		confPath = found[0]
+		confPath = chooseConf(found)
 		if len(found) > 1 {
-			fmt.Printf("候補が %d 件見つかりました。最初の 1 件を使います:\n", len(found))
-			for _, p := range found {
-				fmt.Println("  " + p)
-			}
-			fmt.Println("別の conf を対象にしたい場合は、パスを引数で指定してください。")
 			fmt.Println()
 		}
 	}
@@ -486,5 +586,5 @@ func pauseIfInteractive() {
 	}
 	fmt.Println()
 	fmt.Print("Enter キーを押すと終了します...")
-	bufio.NewReader(os.Stdin).ReadString('\n')
+	stdin.ReadString('\n')
 }

@@ -204,6 +204,20 @@ Bambu Studio を一度も起動していないか、パスが標準と違う。�
 `access_codes.txt.txt` になっていないか（拡張子が隠れている場合に起きる）も
 確認する。
 
+**`アクセスコードを書き込みました` と出たのに、Bambu Studio に反映されない**
+
+書き換えた conf が、Bambu Studio の読む conf と別物の可能性がある。`対象:` の行に
+出たパスと、PowerShell の `echo $env:USERPROFILE` を見比べてほしい。Windows では
+`%APPDATA%` と `%USERPROFILE%` がずれている PC があり、そのとき両方が候補に出る。
+
+候補が複数見つかると番号で聞くので、**更新日時がいちばん新しいもの**を選ぶ
+（Bambu Studio は終了時に conf を書き直すので、使われているものが新しい）。
+パスを直接指定してもよい。
+
+```powershell
+.\patch_access_code-windows-x86.exe "$env:USERPROFILE\AppData\Roaming\BambuStudio\BambuStudio.conf"
+```
+
 **書き換えたのに Bambu Studio でコードが消えている**
 
 まず Bambu Studio が起動したままでなかったか確認する。終了時に設定を
