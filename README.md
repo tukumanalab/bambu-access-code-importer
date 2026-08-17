@@ -155,6 +155,11 @@ conf に元からあったエントリはマージされて消えない。
 `-macos-arm64` と `-macos-x64`）と `access_codes.txt` だけにする。似た名前の
 ファイルが並んでいると取り違えが起きる。
 
+バイナリは認証情報を持たないので、
+[Releases](https://github.com/tukumanalab/bambu-access-code-importer/releases)
+からも落とせる。その場合も `access_codes.txt` はラボ内の置き場所から取る。
+**一覧を Releases に載せてはいけない。**
+
 プリンタを増やしたときは、`access_codes.txt` に 1 行足して置き場所の
 `access_codes.txt` を差し替える。実行ファイルは一覧を持たないので、
 **バイナリの作り直しも配り直しも要らない**。各自が新しい一覧をダウンロード

@@ -16,7 +16,8 @@
 ## 配布物は手元で作る
 
 配るバイナリは `./build.sh` で作り、`access_codes.txt` と一緒にラボ内から
-しか見えない場所に置く。リリースはしないので、GitHub の Releases は使わない。
+しか見えない場所に置く。バイナリだけは Releases にも置いてよい（後述）。
+**`access_codes.txt` は Releases に絶対に載せない**。
 
 CI はテストと、全ターゲットのクロスビルドが通ることの確認だけを行う。
 **バイナリにアクセスコードは入らない**（実行時に隣のファイルを読む）ので、
@@ -55,6 +56,27 @@ Linux x86-64。Go はクロスコンパイルするので、どれも 1 台の M
 
 引き換えに、配布物が 2 ファイルになり、利用者が同じフォルダに置く手間が
 増える。ダウンロードフォルダに両方入れれば済む程度なので、これを受け入れた。
+
+## リリースする
+
+バイナリが認証情報を持たなくなったので、Releases でも配れる。CI のタグ連動
+リリースは外してあるので、手元から `gh` で作る。
+
+```bash
+./build.sh --no-codes                       # 一覧を添えずにバイナリだけ作る
+git tag vX.Y.Z && git push origin vX.Y.Z    # main.go の const version と揃える
+gh release create vX.Y.Z \
+  dist/patch_access_code-windows-x86.exe \
+  dist/patch_access_code-macos-arm64 \
+  dist/patch_access_code-macos-x64
+```
+
+添付するのは利用者が選ぶ 3 つだけ。`--no-codes` を使うのは、`dist/` に
+`access_codes.txt` を置かないため。**一覧は Releases に載せない**。載せたら
+アクセスコードの公開になる。
+
+タグは `main.go` の `const version` と一致させる。v1.0.x は spinel 版のタグで、
+Go 版は 2.0.0 から。
 
 ## conf のキーの意味（Bambu Studio 側の実装）
 
