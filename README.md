@@ -173,6 +173,7 @@ conf に元からあったエントリはマージされて消えない。
 patch_access_code --version          # バージョンを表示する
 patch_access_code --help             # オプションの一覧を表示する
 patch_access_code -n                 # 書き込まずに結果だけ見る
+patch_access_code -d                 # どこをどう探したかを表示する
 patch_access_code -f 別の一覧.txt      # 隣の access_codes.txt 以外を使う
 patch_access_code <conf のパス>       # 対象を明示する（自動検出が外れた場合）
 ```

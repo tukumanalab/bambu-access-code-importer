@@ -138,11 +138,21 @@ conf から削除される**。登録したのに件数が減っている場合�
 探した場所を表示する。置き忘れが典型的な失敗なので、貼り付けを求める前に出す。
 
 **conf の探し先を環境変数だけに頼らない。** `os.UserConfigDir()` は Windows では
-`%APPDATA%` をそのまま読む。この 2 つがずれている PC が実際にあり
-（`%USERPROFILE%` は `C:\Users\ラボメン`、`%APPDATA%` は `C:\Users\tukum\AppData\Roaming`）、
-**Bambu Studio が読まないほうの conf を書き換えて「成功したのに反映されない」**
-という状態になった。ホーム（`os.UserHomeDir()`）から組み立てた場所も候補に加え、
-同じパスは 1 件に畳む。
+`%APPDATA%` をそのまま読む。ラボの PC で、プロセスが受け取る `%APPDATA%` が
+`C:\Users\tukum\AppData\Roaming` を指しているのに、PowerShell で見ると
+`C:\Users\ラボメン\AppData\Roaming` という状態が起きた（同じ PC・同じアカウント。
+プロファイル名が変わる前の値を、起動元のプロセスが抱えたまま渡していたと見ている）。
+結果、**Bambu Studio が読まないほうの conf を書き換えて「成功したのに反映されない」**
+ことになった。
+
+Windows では `SHGetKnownFolderPath(FOLDERID_RoamingAppData)` でシェルに直接聞く
+（`knownfolder_windows.go`）。Bambu Studio は wxWidgets 経由で同じ既知フォルダを
+見るので、探し先が食い違わない。環境変数由来とホーム（`os.UserHomeDir()`）由来も
+候補には残し、同じパスは 1 件に畳む。
+
+**`-d` で探索の内訳を出す。** 環境変数・シェルの既知フォルダ・ホームがそれぞれ何を
+返し、どの候補が存在するかを並べる。上記の食い違いは表示させないと切り分けられず、
+写真を撮ってもらうところから始まって遠回りになった。
 
 **候補が複数あるときは選んでもらう。** 以前は黙って 1 件目を使っていたので、
 取り違えに気づけなかった。更新日時の新しい順に並べて番号で選ばせる。Bambu Studio

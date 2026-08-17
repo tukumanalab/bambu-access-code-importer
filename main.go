@@ -254,11 +254,15 @@ func homeConfigDir() string {
 	}
 }
 
-// conf の探索順。まず OS 標準の設定ディレクトリ
+// conf の探索順。Windows ではまずシェルに聞いた Roaming AppData
+// (Bambu Studio と同じ求め方)、次に OS 標準の設定ディレクトリ
 // (Windows: %APPDATA%, macOS: ~/Library/Application Support, Linux: ~/.config)、
 // 次にホーム由来の同じ場所、最後に WSL から見た Windows 側。
 func candidatePaths() []string {
 	var dirs []string
+	if dir := roamingAppDataDir(); dir != "" {
+		dirs = append(dirs, dir)
+	}
 	if dir, err := os.UserConfigDir(); err == nil && dir != "" {
 		dirs = append(dirs, dir)
 	}
@@ -429,8 +433,50 @@ const usage = `使い方: patch_access_code [オプション] [BambuStudio.conf 
 
   -n, --dry-run     書き込まずに結果だけ表示する
   -f, --codes FILE  アクセスコード一覧をファイルから読む
+  -d, --debug       どこをどう探したかを表示する
   -v, --version     バージョンを表示する
   -h, --help        このヘルプを表示する`
+
+// 探し先が期待と違うときの手掛かり。どの取得元が何を返したかを並べる。
+// 環境変数と実際の場所が食い違う PC があり、表示を見ないと切り分けられない。
+func printDiagnostics() {
+	fmt.Println()
+	fmt.Println("--- 探索の内訳 ---")
+	fmt.Printf("  OS/CPU: %s/%s\n", runtime.GOOS, runtime.GOARCH)
+	for _, name := range []string{"APPDATA", "USERPROFILE", "HOME", "XDG_CONFIG_HOME"} {
+		if v := os.Getenv(name); v != "" {
+			fmt.Printf("  %%%s%%: %s\n", name, v)
+		}
+	}
+	if dir := roamingAppDataDir(); dir != "" {
+		fmt.Println("  シェルに聞いた Roaming AppData: " + dir)
+	}
+	if dir, err := os.UserConfigDir(); err == nil {
+		fmt.Println("  os.UserConfigDir(): " + dir)
+	}
+	if dir := homeConfigDir(); dir != "" {
+		fmt.Println("  ホーム由来: " + dir)
+	}
+	fmt.Println("  実行ファイルの場所: " + exeDir())
+
+	fmt.Println("  conf の候補:")
+	for _, p := range candidatePaths() {
+		fmt.Println("    " + p + describeFile(p))
+	}
+	fmt.Println("  一覧の候補:")
+	for _, p := range codesFileCandidates() {
+		fmt.Println("    " + p + describeFile(p))
+	}
+	fmt.Println("------------------")
+}
+
+func describeFile(path string) string {
+	info, err := os.Stat(path)
+	if err != nil {
+		return "  [無し]"
+	}
+	return "  [あり 更新 " + info.ModTime().Format("2006-01-02 15:04:05") + "]"
+}
 
 func main() {
 	setupConsole()
@@ -443,6 +489,7 @@ func run() int {
 	fmt.Println("patch_access_code " + version)
 
 	dryRun := false
+	debug := false
 	confPath := ""
 	codesFile := ""
 	args := os.Args[1:]
@@ -456,6 +503,8 @@ func run() int {
 			return 0
 		case "-n", "--dry-run":
 			dryRun = true
+		case "-d", "--debug":
+			debug = true
 		case "-f", "--codes":
 			i++
 			if i >= len(args) {
@@ -466,6 +515,10 @@ func run() int {
 		default:
 			confPath = args[i]
 		}
+	}
+
+	if debug {
+		printDiagnostics()
 	}
 
 	if confPath == "" {
