@@ -7,7 +7,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,12 +25,6 @@ const (
 // アクセスコード一覧のファイル名。実行ファイルと同じ場所、次にカレント
 // ディレクトリの順で探す。
 const codesFileName = "access_codes.txt"
-
-// ビルド時に埋め込むアクセスコード一覧 (base64)。build.sh が
-// -ldflags "-X main.embeddedCodesB64=..." で流し込む。
-// 公開リポジトリの CI はここを空のままビルドするので、Releases に置く
-// バイナリに認証情報は入らない。
-var embeddedCodesB64 = ""
 
 // シリアル番号とアクセスコードに使われる文字。
 func isTokenChar(c byte) bool {
@@ -271,17 +264,6 @@ func codesFileCandidates() []string {
 	return list
 }
 
-func embeddedCodes() (string, bool) {
-	if embeddedCodesB64 == "" {
-		return "", false
-	}
-	raw, err := base64.StdEncoding.DecodeString(embeddedCodesB64)
-	if err != nil {
-		return "", false
-	}
-	return string(raw), true
-}
-
 func readPastedCodes() map[string]string {
 	fmt.Println()
 	fmt.Println("アクセスコード一覧を貼り付けてください。")
@@ -306,9 +288,8 @@ func readPastedCodes() map[string]string {
 
 // 一覧の取得元は次の順に決まる:
 //  1. -f FILE で指定したファイル (管理者向けの明示指定)
-//  2. ビルド時に埋め込まれた一覧
-//  3. 実行ファイルの隣、またはカレントディレクトリの access_codes.txt
-//  4. どれも無ければ、その場で貼り付けてもらう
+//  2. 実行ファイルの隣、またはカレントディレクトリの access_codes.txt
+//  3. どれも無ければ、その場で貼り付けてもらう
 func loadCodes(codesFile string) (map[string]string, error) {
 	if codesFile != "" {
 		raw, err := os.ReadFile(codesFile)
@@ -317,11 +298,8 @@ func loadCodes(codesFile string) (map[string]string, error) {
 		}
 		return parseCodes(string(raw)), nil
 	}
-	if text, ok := embeddedCodes(); ok {
-		fmt.Println("埋め込み済みのアクセスコード一覧を使います。")
-		return parseCodes(text), nil
-	}
-	for _, p := range codesFileCandidates() {
+	candidates := codesFileCandidates()
+	for _, p := range candidates {
 		raw, err := os.ReadFile(p)
 		if err != nil {
 			continue
@@ -329,6 +307,14 @@ func loadCodes(codesFile string) (map[string]string, error) {
 		fmt.Println("一覧を使います: " + p)
 		return parseCodes(string(raw)), nil
 	}
+
+	// 実行ファイルの隣に置き忘れているのが典型なので、探した場所を見せる。
+	fmt.Println()
+	fmt.Println(codesFileName + " が見つかりませんでした。探した場所:")
+	for _, p := range candidates {
+		fmt.Println("  " + p)
+	}
+	fmt.Println("実行ファイルと同じフォルダに " + codesFileName + " を置いて、もう一度実行してください。")
 	return readPastedCodes(), nil
 }
 

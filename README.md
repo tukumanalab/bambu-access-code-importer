@@ -13,13 +13,13 @@ Bambu Studio にまとめて登録する**ツール。一度実行すれば、�
 の回避策にもなる。仕組みとしては `BambuStudio.conf` の `user_access_code` に
 一覧を書き込んでいるだけで、他の設定には触れない。
 
-ラボで配るバイナリには**アクセスコードを埋め込んである**ので、Windows では
-ダウンロードしてダブルクリックするだけ。コードの入力も貼り付けも要らない。
-Mac は OS の制限があり、初回だけターミナルでの操作が要る。
+配るのは**実行ファイルとアクセスコード一覧 `access_codes.txt` の 2 つ**。
+同じフォルダに置いて実行すると、隣の一覧を読んで書き込む。コードの入力も
+貼り付けも要らない。Windows はダブルクリックするだけ、Mac は OS の制限があり
+初回だけターミナルでの操作が要る。
 
-> **注意:** 埋め込み済みのバイナリはアクセスコードそのもの。ラボ内からしか
-> アクセスできない場所に置くこと。このリポジトリにコードは入っておらず、
-> 埋め込みは配る人の手元でのビルド時にだけ行われる。
+> **注意:** `access_codes.txt` はアクセスコードそのもの。ラボ内からしか
+> アクセスできない場所に置くこと。このリポジトリにコードは入っていない。
 
 ## 使い方（使う人の手順）
 
@@ -33,13 +33,17 @@ Mac は OS の制限があり、初回だけターミナルでの操作が要る
 終了していないことがあるので、タスクトレイ（時計の左の隠れたアイコン）や
 Dock に残っていないかも確認する。
 
-### 2. ラボ内の配布場所から、自分の PC 用のファイルをダウンロードする
+### 2. 配布場所から、自分の PC 用のファイルと `access_codes.txt` を落とす
 
 | PC | ファイル |
 |---|---|
 | Windows | `patch_access_code-windows-x86.exe` |
 | Mac（M1 以降） | `patch_access_code-macos-arm64` |
 | Mac（Intel） | `patch_access_code-macos-x64` |
+
+**`access_codes.txt` も一緒にダウンロードし、実行ファイルと同じフォルダに
+置く**（どちらもダウンロードフォルダに入れておけばよい）。実行ファイルは
+自分の隣にあるこのファイルからアクセスコードを読む。
 
 Windows 用は 32bit の exe を 1 つだけ配れば、x64 でも ARM でも動く。
 CPU に合わせた `-windows-x64.exe` / `-windows-arm64.exe` もあるが、
@@ -69,12 +73,12 @@ xattr -c patch_access_code-macos-arm64        # ダウンロード時に付く�
 
 ### 4. 表示を確認して Enter
 
-設定ファイルを自動で見つけ、埋め込まれた一覧を書き込む。
+設定ファイルを自動で見つけ、隣の `access_codes.txt` の一覧を書き込む。
 
 ```
 patch_access_code 2.0.0
 対象: C:\Users\ユーザー名\AppData\Roaming\BambuStudio\BambuStudio.conf
-埋め込み済みのアクセスコード一覧を使います。
+一覧を使います: C:\Users\ユーザー名\Downloads\access_codes.txt
   01P09C4XXXXXXXX => 12345678
   0309FA5XXXXXXXX => 1a2b3c4d
 既存 2 件 / 追加 7 件 / 更新 0 件 → 合計 9 件
@@ -116,21 +120,22 @@ conf に元からあったエントリはマージされて消えない。
 実行する。
 
 ```bash
-./build.sh                    # access_codes.txt を埋め込む
+./build.sh                    # access_codes.txt を dist/ に添える
 ./build.sh path/to/list.txt   # 一覧の場所を指定する
 ```
 
-`dist/` に全 OS 分のバイナリができるので、**ラボ内からしかアクセスできない
-場所**に置く。ビルドの途中で埋め込んだ一覧の中身と件数が表示されるので、
-配る前にそこを確認する。
+`dist/` に全 OS 分のバイナリと `access_codes.txt` のコピーができるので、
+**ラボ内からしかアクセスできない場所**に置く。ビルドの途中で一覧の中身と
+件数が表示されるので、配る前にそこを確認する。
 
 置くのは使う人が選ぶ 3 つ（Windows は `-windows-x86.exe`、Mac は
-`-macos-arm64` と `-macos-x64`）だけにする。似た名前のファイルが並んでいると
-取り違えが起きる。
+`-macos-arm64` と `-macos-x64`）と `access_codes.txt` だけにする。似た名前の
+ファイルが並んでいると取り違えが起きる。
 
-プリンタを増やしたときは、`access_codes.txt` に 1 行足して `./build.sh` を
-実行し直し、置き場所のファイルを差し替える。各自がもう一度ダウンロードして
-実行すれば行き渡る。
+プリンタを増やしたときは、`access_codes.txt` に 1 行足して置き場所の
+`access_codes.txt` を差し替える。実行ファイルは一覧を持たないので、
+**バイナリの作り直しも配り直しも要らない**。各自が新しい一覧をダウンロード
+し直して実行すれば行き渡る。
 
 ## オプション
 
@@ -140,13 +145,13 @@ conf に元からあったエントリはマージされて消えない。
 patch_access_code --version          # バージョンを表示する
 patch_access_code --help             # オプションの一覧を表示する
 patch_access_code -n                 # 書き込まずに結果だけ見る
-patch_access_code -f access_codes.txt # 埋め込みの代わりに一覧のファイルを使う
+patch_access_code -f 別の一覧.txt      # 隣の access_codes.txt 以外を使う
 patch_access_code <conf のパス>       # 対象を明示する（自動検出が外れた場合）
 ```
 
-実行ファイルと同じフォルダに `access_codes.txt` を置いた場合も、それが使われる
-（埋め込みより優先度は低い）。埋め込みも一覧ファイルも無い版では、実行時に
-一覧の貼り付けを求められる。
+一覧は「`-f` で指定したファイル → 実行ファイルと同じフォルダの
+`access_codes.txt` → カレントディレクトリの `access_codes.txt`」の順に探す。
+どれも無い場合は、探した場所を表示したうえで、実行時に一覧の貼り付けを求める。
 
 ## 元に戻す
 
@@ -165,6 +170,13 @@ Bambu Studio を一度も起動していないか、パスが標準と違う。�
 
 - Windows: `%APPDATA%\BambuStudio\BambuStudio.conf`
 - macOS: `~/Library/Application Support/BambuStudio/BambuStudio.conf`
+
+**`access_codes.txt が見つかりませんでした`**
+
+実行ファイルと `access_codes.txt` が別のフォルダにある。探した場所が画面に
+出るので、そこに `access_codes.txt` を置いて実行し直す。Windows で
+`access_codes.txt.txt` になっていないか（拡張子が隠れている場合に起きる）も
+確認する。
 
 **書き換えたのに Bambu Studio でコードが消えている**
 

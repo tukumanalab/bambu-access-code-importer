@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 # 配布物を作るのは手元の build.sh で、ここでビルドするのは壊れていないかの
-# 確認のため。アクセスコードを埋め込まないので、成果物に認証情報は入らない。
+# 確認のため。バイナリはアクセスコードを持たない (実行時に隣の
+# access_codes.txt を読む) ので、成果物に認証情報は入らない。
 jobs:
   build:
     runs-on: ubuntu-latest

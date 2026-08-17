@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -41,6 +42,34 @@ func TestParseCodesRejectsProse(t *testing.T) {
 		if codes := parseCodes(line + "\n"); len(codes) != 0 {
 			t.Errorf("拾ってはいけない行を拾った: %q => %v", line, codes)
 		}
+	}
+}
+
+// 隣のファイルを読む方式では、探す場所と順番そのものが仕様。
+// 実行ファイルの隣を先に見ないと、Finder やエクスプローラから起動したときに
+// 一覧を見つけられない。
+func TestCodesFileCandidates(t *testing.T) {
+	got := codesFileCandidates()
+	if len(got) == 0 {
+		t.Fatal("候補が空になった")
+	}
+	for _, p := range got {
+		if !filepath.IsAbs(p) {
+			t.Errorf("絶対パスでない: %q", p)
+		}
+		if filepath.Base(p) != codesFileName {
+			t.Errorf("ファイル名が違う: %q", p)
+		}
+	}
+	if dir := exeDir(); dir != "" && filepath.Dir(got[0]) != dir {
+		t.Errorf("実行ファイルの隣を先に見ていない: %v", got)
+	}
+	seen := map[string]bool{}
+	for _, p := range got {
+		if seen[p] {
+			t.Errorf("同じ場所を 2 回探している: %q", p)
+		}
+		seen[p] = true
 	}
 }
 
