@@ -44,8 +44,8 @@ fi
 
 mkdir -p dist
 build() { # GOOS GOARCH 出力名
-  echo "building dist/patch_access_code-$3"
-  GOOS="$1" GOARCH="$2" go build -trimpath -o "dist/patch_access_code-$3" .
+  echo "building dist/bambu_access_code-$3"
+  GOOS="$1" GOARCH="$2" go build -trimpath -o "dist/bambu_access_code-$3" .
 }
 
 build windows amd64 windows-x64.exe

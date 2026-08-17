@@ -66,9 +66,9 @@ Linux x86-64。Go はクロスコンパイルするので、どれも 1 台の M
 ./build.sh --no-codes                       # 一覧を添えずにバイナリだけ作る
 git tag vX.Y.Z && git push origin vX.Y.Z    # main.go の const version と揃える
 gh release create vX.Y.Z \
-  dist/patch_access_code-windows-x86.exe \
-  dist/patch_access_code-macos-arm64 \
-  dist/patch_access_code-macos-x64
+  dist/bambu_access_code-windows-x86.exe \
+  dist/bambu_access_code-macos-arm64 \
+  dist/bambu_access_code-macos-x64
 ```
 
 添付するのは利用者が選ぶ 3 つだけ。`--no-codes` を使うのは、`dist/` に
@@ -137,18 +137,34 @@ conf から削除される**。登録したのに件数が減っている場合�
 場所になるため（`os.Executable()` + `EvalSymlinks` で求める）。見つからなければ
 探した場所を表示する。置き忘れが典型的な失敗なので、貼り付けを求める前に出す。
 
-**conf の探し先を環境変数だけに頼らない。** `os.UserConfigDir()` は Windows では
-`%APPDATA%` をそのまま読む。ラボの PC で、プロセスが受け取る `%APPDATA%` が
-`C:\Users\tukum\AppData\Roaming` を指しているのに、PowerShell で見ると
-`C:\Users\ラボメン\AppData\Roaming` という状態が起きた（同じ PC・同じアカウント。
-プロファイル名が変わる前の値を、起動元のプロセスが抱えたまま渡していたと見ている）。
-結果、**Bambu Studio が読まないほうの conf を書き換えて「成功したのに反映されない」**
-ことになった。
+**実行ファイル名に `patch` を入れない。** ここが今回いちばん引っかかった点。
+UAC の**インストーラ検出**は、マニフェストを持たない 32bit の実行ファイルで、
+名前に `install` / `setup` / `update` / `patch` が含まれると、インストーラとみなして
+昇格を要求する。配っていた `patch_access_code-windows-x86.exe` は 3 条件を満たして
+いた。
 
-Windows では `SHGetKnownFolderPath(FOLDERID_RoamingAppData)` でシェルに直接聞く
+その結果、利用者は毎回管理者の資格情報を入力して起動していた。**昇格したプロセスは
+管理者アカウントのトークンで動く**ので、環境変数もシェルの既知フォルダも管理者の
+プロファイル（`C:\Users\tukum`）を返す。ログイン中の利用者（ラボメン）の conf では
+なく、管理者の conf を書き換えて「書き込みました」と表示していた。
+
+症状の見え方が紛らわしかった。一覧だけは利用者のデスクトップから読めていた
+（実行ファイルの隣を見るので、トークンに依存しない）ため、パスの食い違いが
+環境変数の問題に見えた。
+
+配布名は `bambu_access_code-*` にした。マニフェスト（`asInvoker`）を埋めれば名前に
+依存せず抑えられるが、`.syso` の生成にツールが要るので入れていない。
+
+**conf の探し先を環境変数だけに頼らない。** `os.UserConfigDir()` は Windows では
+`%APPDATA%` をそのまま読む。上記の切り分け中に入れた変更で、Windows では
+`SHGetKnownFolderPath(FOLDERID_RoamingAppData)` でシェルに直接聞く
 （`knownfolder_windows.go`）。Bambu Studio は wxWidgets 経由で同じ既知フォルダを
 見るので、探し先が食い違わない。環境変数由来とホーム（`os.UserHomeDir()`）由来も
 候補には残し、同じパスは 1 件に畳む。
+
+なお、これは昇格の問題には効かない（昇格すればどの取得元も管理者のプロファイルを
+返す）。効くのは名前を変えて昇格させないことのほうで、こちらは環境変数が実態と
+ずれている場合への備えとして残している。
 
 **`-d` で探索の内訳を出す。** 環境変数・シェルの既知フォルダ・ホームがそれぞれ何を
 返し、どの候補が存在するかを並べる。上記の食い違いは表示させないと切り分けられず、

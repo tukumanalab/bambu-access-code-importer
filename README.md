@@ -37,9 +37,9 @@ Dock に残っていないかも確認する。
 
 | PC | ファイル |
 |---|---|
-| Windows | `patch_access_code-windows-x86.exe` |
-| Mac（M1 以降） | `patch_access_code-macos-arm64` |
-| Mac（Intel） | `patch_access_code-macos-x64` |
+| Windows | `bambu_access_code-windows-x86.exe` |
+| Mac（M1 以降） | `bambu_access_code-macos-arm64` |
+| Mac（Intel） | `bambu_access_code-macos-x64` |
 
 **`access_codes.txt` も一緒にダウンロードし、実行ファイルと同じフォルダに
 置く**（どちらもダウンロードフォルダに入れておけばよい）。実行ファイルは
@@ -64,9 +64,9 @@ M1 以降の Mac の場合。Intel Mac ならファイル名を `-macos-x64` に
 
 ```bash
 cd ~/Downloads
-chmod +x patch_access_code-macos-arm64        # 実行の許可を与える
-xattr -c patch_access_code-macos-arm64        # ダウンロード時に付く検疫マークを外す
-./patch_access_code-macos-arm64
+chmod +x bambu_access_code-macos-arm64        # 実行の許可を与える
+xattr -c bambu_access_code-macos-arm64        # ダウンロード時に付く検疫マークを外す
+./bambu_access_code-macos-arm64
 ```
 
 `chmod` と `xattr` を済ませたファイルは、次回からダブルクリックでも起動できる。
@@ -76,7 +76,7 @@ xattr -c patch_access_code-macos-arm64        # ダウンロード時に付く�
 設定ファイルを自動で見つけ、隣の `access_codes.txt` の一覧を書き込む。
 
 ```
-patch_access_code 2.0.0
+bambu_access_code 2.0.1
 対象: C:\Users\ユーザー名\AppData\Roaming\BambuStudio\BambuStudio.conf
 一覧を使います: C:\Users\ユーザー名\Downloads\access_codes.txt
   01P09C4XXXXXXXX => 12345678
@@ -170,12 +170,12 @@ conf に元からあったエントリはマージされて消えない。
 ふだんは要らないが、うまくいかないときの手掛かりになる。
 
 ```bash
-patch_access_code --version          # バージョンを表示する
-patch_access_code --help             # オプションの一覧を表示する
-patch_access_code -n                 # 書き込まずに結果だけ見る
-patch_access_code -d                 # どこをどう探したかを表示する
-patch_access_code -f 別の一覧.txt      # 隣の access_codes.txt 以外を使う
-patch_access_code <conf のパス>       # 対象を明示する（自動検出が外れた場合）
+bambu_access_code --version          # バージョンを表示する
+bambu_access_code --help             # オプションの一覧を表示する
+bambu_access_code -n                 # 書き込まずに結果だけ見る
+bambu_access_code -d                 # どこをどう探したかを表示する
+bambu_access_code -f 別の一覧.txt      # 隣の access_codes.txt 以外を使う
+bambu_access_code <conf のパス>       # 対象を明示する（自動検出が外れた場合）
 ```
 
 一覧は「`-f` で指定したファイル → 実行ファイルと同じフォルダの
@@ -205,18 +205,35 @@ Bambu Studio を一度も起動していないか、パスが標準と違う。�
 `access_codes.txt.txt` になっていないか（拡張子が隠れている場合に起きる）も
 確認する。
 
+**実行しようとすると管理者のパスワードを聞かれる（Windows）**
+
+**そのまま管理者として実行してはいけない。** 昇格したプロセスは管理者アカウントの
+ものとして動くため、いま使っている人ではなく**管理者の設定ファイルを書き換えて
+しまう**（画面には成功と出るのに、Bambu Studio には反映されない）。
+
+原因はファイル名。Windows は、名前に `patch` / `install` / `setup` / `update` を
+含む 32bit の実行ファイルをインストーラとみなして昇格を求める。`patch_access_code-*`
+という古い名前のファイルを使っている場合に起きるので、**`bambu_access_code-*` を
+配布場所から取り直す**。手元でファイル名を変えるだけでも直る。
+
 **`アクセスコードを書き込みました` と出たのに、Bambu Studio に反映されない**
 
-書き換えた conf が、Bambu Studio の読む conf と別物の可能性がある。`対象:` の行に
-出たパスと、PowerShell の `echo $env:USERPROFILE` を見比べてほしい。Windows では
-`%APPDATA%` と `%USERPROFILE%` がずれている PC があり、そのとき両方が候補に出る。
+書き換えた conf が、Bambu Studio の読む conf と別物の可能性がある。まず上の
+「管理者のパスワードを聞かれる」に当てはまらないかを確認する。`対象:` の行に
+`C:\Users\<自分のユーザー名>\...` 以外が出ていたら、それが起きている。
 
-候補が複数見つかると番号で聞くので、**更新日時がいちばん新しいもの**を選ぶ
+`-d` を付けると、どこをどう探したかが表示される。
+
+```powershell
+.\bambu_access_code-windows-x86.exe -d -n
+```
+
+候補が複数見つかったときは番号で聞くので、**更新日時がいちばん新しいもの**を選ぶ
 （Bambu Studio は終了時に conf を書き直すので、使われているものが新しい）。
 パスを直接指定してもよい。
 
 ```powershell
-.\patch_access_code-windows-x86.exe "$env:USERPROFILE\AppData\Roaming\BambuStudio\BambuStudio.conf"
+.\bambu_access_code-windows-x86.exe "$env:USERPROFILE\AppData\Roaming\BambuStudio\BambuStudio.conf"
 ```
 
 **書き換えたのに Bambu Studio でコードが消えている**

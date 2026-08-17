@@ -429,7 +429,7 @@ func loadCodes(codesFile string) (map[string]string, error) {
 
 // ---- main ----
 
-const usage = `使い方: patch_access_code [オプション] [BambuStudio.conf のパス]
+const usage = `使い方: bambu_access_code [オプション] [BambuStudio.conf のパス]
 
   -n, --dry-run     書き込まずに結果だけ表示する
   -f, --codes FILE  アクセスコード一覧をファイルから読む
@@ -486,7 +486,7 @@ func main() {
 }
 
 func run() int {
-	fmt.Println("patch_access_code " + version)
+	fmt.Println("bambu_access_code " + version)
 
 	dryRun := false
 	debug := false
@@ -534,7 +534,7 @@ func run() int {
 			for _, p := range candidatePaths() {
 				fmt.Println("  " + p)
 			}
-			fmt.Println("パスを引数で指定してください: patch_access_code <BambuStudio.conf のパス>")
+			fmt.Println("パスを引数で指定してください: bambu_access_code <BambuStudio.conf のパス>")
 			return 1
 		}
 		confPath = chooseConf(found)

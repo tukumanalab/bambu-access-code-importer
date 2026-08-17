@@ -33,7 +33,7 @@ jobs:
         run: |
           mkdir -p dist
           build() {
-            GOOS="$1" GOARCH="$2" go build -trimpath -o "dist/patch_access_code-$3" .
+            GOOS="$1" GOARCH="$2" go build -trimpath -o "dist/bambu_access_code-$3" .
           }
           build windows amd64 windows-x64.exe
           build windows arm64 windows-arm64.exe
@@ -44,9 +44,9 @@ jobs:
 
       - name: Smoke test
         run: |
-          dist/patch_access_code-linux-x86_64 --version
+          dist/bambu_access_code-linux-x86_64 --version
           printf '{\n    "user_access_code": {\n        "0EXIST1XXXXXXXX": "11111111"\n    }\n}\n' > "$RUNNER_TEMP/test.conf"
           printf '# comment\n0309FA5TESTAAAA 1a2b3c4d\n\n' \
-            | dist/patch_access_code-linux-x86_64 "$RUNNER_TEMP/test.conf"
+            | dist/bambu_access_code-linux-x86_64 "$RUNNER_TEMP/test.conf"
           grep -q '"0309FA5TESTAAAA": "1a2b3c4d"' "$RUNNER_TEMP/test.conf"
           grep -q '"0EXIST1XXXXXXXX": "11111111"' "$RUNNER_TEMP/test.conf"
