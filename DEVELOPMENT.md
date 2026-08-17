@@ -34,10 +34,14 @@ Windows 向けのコード（`console_windows.go`）が壊れていないかは 
 対象は Windows x64 / Windows x86 / Windows arm64 / macOS arm64 / macOS x64 /
 Linux x86-64。Go はクロスコンパイルするので、どれも 1 台の Mac から作れる。
 
-配るのは Windows x86 と macOS の 2 つ（Intel Mac がいれば 3 つ）だけにする。
-32bit の exe はどの Windows でも動くので、利用者に CPU を判別させずに済む。
-似た名前が並ぶと取り違えが起きる（実際に arm64 版を実行して
+配るのは Windows x64 と macOS の 2 つ（Intel Mac がいれば 3 つ）だけにする。
+x64 は ARM の Windows でもエミュレーションで動くので、利用者に CPU を判別させずに
+済む。似た名前が並ぶと取り違えが起きる（実際に arm64 版を実行して
 「このアプリはお使いの PC で実行できません」になった）。
+
+**32bit 版は配らない。** UAC のインストーラ検出に引っかかって昇格を求められ、
+管理者として実行すると管理者の conf を書き換えてしまう（後述）。要るのは 32bit
+しかない古い Windows と、x64 をエミュレーションできない古い ARM 版 Windows だけ。
 
 `build.sh` は全ターゲットを作る前に、ネイティブ版をその場でビルドして
 `-n`（dry-run）で走らせ、配る一覧が期待どおり読めることを確かめる。
@@ -66,7 +70,7 @@ Linux x86-64。Go はクロスコンパイルするので、どれも 1 台の M
 ./build.sh --no-codes                       # 一覧を添えずにバイナリだけ作る
 git tag vX.Y.Z && git push origin vX.Y.Z    # main.go の const version と揃える
 gh release create vX.Y.Z \
-  dist/bambu_access_code-windows-x86.exe \
+  dist/bambu_access_code-windows-x64.exe \
   dist/bambu_access_code-macos-arm64 \
   dist/bambu_access_code-macos-x64
 ```
@@ -137,11 +141,11 @@ conf から削除される**。登録したのに件数が減っている場合�
 場所になるため（`os.Executable()` + `EvalSymlinks` で求める）。見つからなければ
 探した場所を表示する。置き忘れが典型的な失敗なので、貼り付けを求める前に出す。
 
-**実行ファイル名に `patch` を入れない。** ここが今回いちばん引っかかった点。
-UAC の**インストーラ検出**は、マニフェストを持たない 32bit の実行ファイルで、
-名前に `install` / `setup` / `update` / `patch` が含まれると、インストーラとみなして
-昇格を要求する。配っていた `patch_access_code-windows-x86.exe` は 3 条件を満たして
-いた。
+**Windows に配るのは 64bit 版。32bit 版は昇格を求められる。** ここが今回いちばん
+引っかかった点。UAC の**インストーラ検出**は、マニフェストを持たない 32bit の
+実行ファイルをインストーラとみなして昇格を要求することがある（名前に `install` /
+`setup` / `update` / `patch` を含むのが典型）。配っていた
+`patch_access_code-windows-x86.exe` がこれに当たっていた。
 
 その結果、利用者は毎回管理者の資格情報を入力して起動していた。**昇格したプロセスは
 管理者アカウントのトークンで動く**ので、環境変数もシェルの既知フォルダも管理者の
@@ -152,8 +156,10 @@ UAC の**インストーラ検出**は、マニフェストを持たない 32bit
 （実行ファイルの隣を見るので、トークンに依存しない）ため、パスの食い違いが
 環境変数の問題に見えた。
 
-配布名は `bambu_access_code-*` にした。マニフェスト（`asInvoker`）を埋めれば名前に
-依存せず抑えられるが、`.syso` の生成にツールが要るので入れていない。
+**名前を変えるだけでは消えなかった**（`bambu_access_code-*` にしても昇格を求められた）。
+64bit 版に替えると出なくなり、これで解決とした。この検出は 32bit 限定なので、
+64bit なら条件そのものが成立しない。マニフェスト（`asInvoker`）を埋めれば 32bit でも
+抑えられるはずだが、`.syso` の生成にツールが要るので入れていない。
 
 **conf の探し先を環境変数だけに頼らない。** `os.UserConfigDir()` は Windows では
 `%APPDATA%` をそのまま読む。上記の切り分け中に入れた変更で、Windows では

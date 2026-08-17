@@ -37,7 +37,7 @@ Dock に残っていないかも確認する。
 
 | PC | ファイル |
 |---|---|
-| Windows | `bambu_access_code-windows-x86.exe` |
+| Windows | `bambu_access_code-windows-x64.exe` |
 | Mac（M1 以降） | `bambu_access_code-macos-arm64` |
 | Mac（Intel） | `bambu_access_code-macos-x64` |
 
@@ -45,10 +45,14 @@ Dock に残っていないかも確認する。
 置く**（どちらもダウンロードフォルダに入れておけばよい）。実行ファイルは
 自分の隣にあるこのファイルからアクセスコードを読む。
 
-Windows 用は 32bit の exe を 1 つだけ配れば、x64 でも ARM でも動く。
-CPU に合わせた `-windows-x64.exe` / `-windows-arm64.exe` もあるが、
-**取り違えると「このアプリはお使いの PC で実行できません」で止まる**ので、
-配布場所には 1 つだけ置くほうがよい（処理内容は同じで、速度差も出ない）。
+Windows 用は 64bit の exe を 1 つだけ配る。ARM の Windows でも動く（x64 を
+エミュレーションで実行できるため）。32bit 版の `-windows-x86.exe` も作ってあるが、
+**実行のたびに管理者のパスワードを聞かれる**ので、ふだんは使わない（理由は
+「うまくいかないとき」を参照）。
+
+`-windows-x86.exe` が要るのは、32bit しかない古い Windows と、x64 を
+エミュレーションできない古い ARM 版 Windows だけ。**取り違えると「このアプリは
+お使いの PC で実行できません」で止まる**ので、配布場所には 1 つだけ置くほうがよい。
 
 ### 3. 実行する
 
@@ -151,9 +155,10 @@ conf に元からあったエントリはマージされて消えない。
 **ラボ内からしかアクセスできない場所**に置く。ビルドの途中で一覧の中身と
 件数が表示されるので、配る前にそこを確認する。
 
-置くのは使う人が選ぶ 3 つ（Windows は `-windows-x86.exe`、Mac は
+置くのは使う人が選ぶ 3 つ（Windows は `-windows-x64.exe`、Mac は
 `-macos-arm64` と `-macos-x64`）と `access_codes.txt` だけにする。似た名前の
-ファイルが並んでいると取り違えが起きる。
+ファイルが並んでいると取り違えが起きる。**32bit 版は置かない**（実行のたびに
+管理者のパスワードを求められ、そのまま進むと管理者の設定ファイルが書き換わる）。
 
 バイナリは認証情報を持たないので、
 [Releases](https://github.com/tukumanalab/bambu-access-code-importer/releases)
@@ -207,14 +212,25 @@ Bambu Studio を一度も起動していないか、パスが標準と違う。�
 
 **実行しようとすると管理者のパスワードを聞かれる（Windows）**
 
+`-windows-x86.exe`（32bit 版）を使っている。**`-windows-x64.exe` に替えれば出なく
+なる。**
+
 **そのまま管理者として実行してはいけない。** 昇格したプロセスは管理者アカウントの
 ものとして動くため、いま使っている人ではなく**管理者の設定ファイルを書き換えて
-しまう**（画面には成功と出るのに、Bambu Studio には反映されない）。
+しまう**（画面には成功と出るのに、Bambu Studio には反映されない）。実際にこれで
+半日つまずいた。
 
-原因はファイル名。Windows は、名前に `patch` / `install` / `setup` / `update` を
-含む 32bit の実行ファイルをインストーラとみなして昇格を求める。`patch_access_code-*`
-という古い名前のファイルを使っている場合に起きるので、**`bambu_access_code-*` を
-配布場所から取り直す**。手元でファイル名を変えるだけでも直る。
+Windows は、マニフェストを持たない 32bit の実行ファイルをインストーラかもしれない
+ものとして扱い、昇格を求めることがある（ファイル名に `patch` / `install` /
+`setup` / `update` を含む場合が典型だが、名前を変えても消えないことがある）。
+64bit の実行ファイルはこの判定の対象外。
+
+どうしても 32bit 版を使う必要があり、昇格を避けられない場合は、書き込み先を
+明示すれば正しい conf を更新できる。
+
+```powershell
+.\bambu_access_code-windows-x86.exe "C:\Users\<自分のユーザー名>\AppData\Roaming\BambuStudio\BambuStudio.conf"
+```
 
 **`アクセスコードを書き込みました` と出たのに、Bambu Studio に反映されない**
 
@@ -225,7 +241,7 @@ Bambu Studio を一度も起動していないか、パスが標準と違う。�
 `-d` を付けると、どこをどう探したかが表示される。
 
 ```powershell
-.\bambu_access_code-windows-x86.exe -d -n
+.\bambu_access_code-windows-x64.exe -d -n
 ```
 
 候補が複数見つかったときは番号で聞くので、**更新日時がいちばん新しいもの**を選ぶ
@@ -233,7 +249,7 @@ Bambu Studio を一度も起動していないか、パスが標準と違う。�
 パスを直接指定してもよい。
 
 ```powershell
-.\bambu_access_code-windows-x86.exe "$env:USERPROFILE\AppData\Roaming\BambuStudio\BambuStudio.conf"
+.\bambu_access_code-windows-x64.exe "$env:USERPROFILE\AppData\Roaming\BambuStudio\BambuStudio.conf"
 ```
 
 **書き換えたのに Bambu Studio でコードが消えている**
@@ -255,13 +271,17 @@ LAN オンリーモードを有効にしてから、もう一度実行する。
 
 **`このアプリはお使いの PC で実行できません`（Windows）**
 
-exe と PC の CPU が合っていない。`-windows-x86.exe` はどの Windows でも
-動くので、これを使う。何を使うべきか確かめたい場合は、`Windows キー + Pause`
-で開く画面の「システムの種類」を見る（`x64 ベース` なら `-windows-x64.exe`、
-`ARM ベース` なら `-windows-arm64.exe` も使える）。
+exe と PC の CPU が合っていない。ふつうは `-windows-x64.exe` で動く（ARM の
+Windows でもエミュレーションで動く）。確かめたい場合は `Windows キー + Pause`
+で開く画面の「システムの種類」を見る（`ARM ベース` なら `-windows-arm64.exe` も
+使える）。
 
-同じ表示が `-windows-x86.exe` でも出る場合は、ダウンロードの途中でファイルが
-壊れている。取得し直す。
+`-windows-x64.exe` で止まるのは、32bit しかない古い Windows か、x64 を
+エミュレーションできない古い ARM 版 Windows。その場合だけ `-windows-x86.exe`
+を使う（管理者のパスワードを聞かれる点は上記のとおり）。
+
+どれでも同じ表示が出る場合は、ダウンロードの途中でファイルが壊れている。
+取得し直す。
 
 **画面が一瞬で閉じてしまう**
 
